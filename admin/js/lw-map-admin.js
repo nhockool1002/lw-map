@@ -106,10 +106,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if(!managerMap) return;
 
         markersLayer = L.layerGroup().addTo(managerMap);
-        // Geocoder
+        // Geocoder - Modern Search Bar
         if(L.Control.Geocoder) {
-            L.Control.geocoder({ defaultMarkGeocode: false, position: 'topright', placeholder: '🔍 Tìm địa điểm...', geocoder: L.Control.Geocoder.nominatim() })
-            .on('markgeocode', function(e) { managerMap.fitBounds(e.geocode.bbox); }).addTo(managerMap);
+            L.Control.geocoder({ 
+                defaultMarkGeocode: false, 
+                position: 'topright', 
+                placeholder: 'Tìm địa điểm...', 
+                geocoder: L.Control.Geocoder.nominatim(),
+                errorMessage: 'Không tìm thấy địa điểm',
+                noResultsMessage: 'Không có kết quả'
+            })
+            .on('markgeocode', function(e) { 
+                managerMap.fitBounds(e.geocode.bbox); 
+            }).addTo(managerMap);
         }
 
         renderPointsManager();

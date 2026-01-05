@@ -199,9 +199,9 @@
                                     <input type="text" name="shortcode_tag" class="form-control lw-form-control fw-bold" value="<?php echo esc_attr($shortcode_tag); ?>" placeholder="lw_map">
                                     <div class="form-text small">Sử dụng: <code>[<?php echo esc_html($shortcode_tag); ?>]</code></div>
                                 </div>
-                                <div class="form-check form-switch p-0">
-                                    <label class="form-check-label fw-bold small" for="autoDisplaySwitch">Tự động hiển thị bản đồ dưới bài Post</label>
-                                    <input class="form-check-input ms-3 float-end" type="checkbox" id="autoDisplaySwitch" name="auto_display" value="yes" <?php checked($auto_display, 'yes'); ?>>
+                                <div class="form-check form-switch d-flex justify-content-between align-items-center">
+                                    <label class="form-check-label fw-bold small mb-0" for="autoDisplaySwitch">Tự động hiển thị bản đồ dưới bài Post</label>
+                                    <input class="form-check-input" type="checkbox" id="autoDisplaySwitch" name="auto_display" value="yes" <?php checked($auto_display, 'yes'); ?>>
                                 </div>
                             </div>
                         </div>
