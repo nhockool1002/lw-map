@@ -163,6 +163,14 @@ class LW_Map_Admin {
         
         $map_themes = lw_get_map_themes();
         $gradients = lw_get_gradients();
+        // Shuffle gradients để hiển thị ngẫu nhiên (giữ nguyên key để không ảnh hưởng đến giá trị đã lưu)
+        $gradient_keys = array_keys($gradients);
+        shuffle($gradient_keys);
+        $shuffled_gradients = [];
+        foreach($gradient_keys as $key) {
+            $shuffled_gradients[$key] = $gradients[$key];
+        }
+        $gradients = $shuffled_gradients;
         $users = get_users(['fields' => ['ID', 'display_name', 'user_email']]);
         $can_access_settings = lw_can_access_settings();
 

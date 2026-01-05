@@ -3,8 +3,8 @@
  * Plugin Name:       LW Interactive Map Pro
  * Plugin URI:        https://hoikylangthang.io.vn
  * Description:       Bản đồ hành trình chuyên nghiệp.
- * Version:           0.0.2-1
- * Author:            Gemini AI
+ * Version:           0.0.2-2
+ * Author:            Nhut Nguyen ft Gemini Pro AI
  * Text Domain:       lw-map
  * Domain Path:       /languages
  */
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'LW_MAP_VERSION', '0.0.2-1' );
+define( 'LW_MAP_VERSION', '0.0.2-2' );
 define( 'LW_MAP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LW_MAP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
