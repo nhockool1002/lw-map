@@ -34,9 +34,9 @@ if ( file_exists( LW_MAP_PLUGIN_DIR . 'includes/plugin-update-checker/plugin-upd
     use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
     $myUpdateChecker = PucFactory::buildUpdateChecker(
-        'https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME', // <--- THAY ĐỔI ĐƯỜNG DẪN NÀY
+        'https://github.com/nhockool1002/lw-map', // <--- THAY ĐỔI ĐƯỜNG DẪN NÀY
         __FILE__,
-        'lw-interactive-map-pro'
+        'lw-map'
     );
 
     // Cấu hình (Tùy chọn): Nếu repo là Private, bỏ comment dòng dưới và điền Token
