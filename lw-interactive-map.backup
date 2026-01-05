@@ -1,0 +1,935 @@
+<?php
+/*
+Plugin Name: LW Interactive Map Pro (Refined UI v5.5.0)
+Plugin URI: https://hoikylangthang.io.vn
+Description: Bản đồ hành trình. Update v5.5.0: Tối ưu UI Settings (Dropdown Theme, Clean Shortcode, Fixed Switcher), Modal hiện đại.
+Version: 5.5.0
+Author: Gemini AI
+*/
+
+if (!defined('ABSPATH')) exit;
+
+// ==========================================
+// 1. CONFIG & DATA
+// ==========================================
+
+function lw_get_all_icons() {
+    $defaults = [
+        ['name' => 'Blue (Mặc định)',   'url' => 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png', 'is_default' => true],
+        ['name' => 'Red (Nổi bật)',      'url' => 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', 'is_default' => true],
+        ['name' => 'Green (Thiên nhiên)','url' => 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png', 'is_default' => true],
+        ['name' => 'Gold (Đặc biệt)',    'url' => 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png', 'is_default' => true],
+        ['name' => 'Violet (Mộng mơ)',   'url' => 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png', 'is_default' => true],
+    ];
+    $customs = get_option('lw_map_icons', []);
+    if (!is_array($customs)) $customs = [];
+    return array_merge($defaults, $customs);
+}
+
+function lw_get_map_themes() {
+    return [
+        'osm' => ['name' => 'OpenStreetMap (Chuẩn)', 'url' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        'carto_light' => ['name' => 'CartoDB Positron (Sáng)', 'url' => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'],
+        'carto_dark' => ['name' => 'CartoDB Dark Matter (Tối)', 'url' => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'],
+        'esri_sat' => ['name' => 'Esri World Imagery (Vệ tinh)', 'url' => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']
+    ];
+}
+
+function lw_get_gradients() {
+    return [
+        'default' => ['name' => 'Ocean Blue', 'css' => 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 'hex' => '#2563eb'],
+        'sunset'  => ['name' => 'Sunset Orange', 'css' => 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)', 'hex' => '#ea580c'],
+        'nature'  => ['name' => 'Lush Green', 'css' => 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 'hex' => '#059669'],
+        'royal'   => ['name' => 'Royal Purple', 'css' => 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', 'hex' => '#7c3aed'],
+        'rose'    => ['name' => 'Rose Pink', 'css' => 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)', 'hex' => '#e11d48'],
+        'dark'    => ['name' => 'Midnight', 'css' => 'linear-gradient(135deg, #334155 0%, #0f172a 100%)', 'hex' => '#0f172a'],
+        'fire'    => ['name' => 'Fire Red', 'css' => 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', 'hex' => '#b91c1c'],
+        'teal'    => ['name' => 'Teal Ocean', 'css' => 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)', 'hex' => '#0f766e'],
+        'gold'    => ['name' => 'Luxury Gold', 'css' => 'linear-gradient(135deg, #eab308 0%, #a16207 100%)', 'hex' => '#a16207'],
+        'indigo'  => ['name' => 'Deep Indigo', 'css' => 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)', 'hex' => '#4338ca'],
+        'cyan'    => ['name' => 'Cyan Sky', 'css' => 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', 'hex' => '#0891b2'],
+        'lime'    => ['name' => 'Citrus Lime', 'css' => 'linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%)', 'hex' => '#4d7c0f'],
+        'fuchsia' => ['name' => 'Neon Fuchsia', 'css' => 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)', 'hex' => '#a21caf'],
+        'slate'   => ['name' => 'Cool Slate', 'css' => 'linear-gradient(135deg, #64748b 0%, #334155 100%)', 'hex' => '#334155'],
+        'coffee'  => ['name' => 'Coffee Bean', 'css' => 'linear-gradient(135deg, #78350f 0%, #451a03 100%)', 'hex' => '#78350f']
+    ];
+}
+
+function lw_can_access_settings() {
+    $current_user_id = get_current_user_id();
+    if (current_user_can('administrator') || $current_user_id == 1) return true;
+    $allowed_users = get_option('lw_map_allowed_users', []);
+    return in_array($current_user_id, $allowed_users);
+}
+
+// ==========================================
+// 2. ASSETS & STYLING (FIXED UI)
+// ==========================================
+
+add_action('admin_menu', 'lw_map_create_menu');
+function lw_map_create_menu() {
+    add_menu_page('Bản đồ hành trình', 'LW Map', 'manage_options', 'lw-map-manager', 'lw_map_admin_page_html', 'dashicons-location-alt', 20);
+}
+
+add_action('admin_enqueue_scripts', 'lw_map_enqueue_assets');
+add_action('wp_enqueue_scripts', 'lw_map_enqueue_assets');
+
+function lw_map_enqueue_assets($hook) {
+    if (is_admin() && isset($_GET['page']) && $_GET['page'] == 'lw-map-manager') wp_enqueue_media();
+
+    wp_enqueue_style('bs5-css', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css');
+    wp_enqueue_script('bs5-js', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js', [], null, true);
+    wp_enqueue_style('fa-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+    wp_enqueue_style('leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+    wp_enqueue_script('leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], null, true);
+    wp_enqueue_script('leaflet-geocoder-js', 'https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js', ['leaflet-js'], null, true);
+    wp_enqueue_style('leaflet-geocoder-css', 'https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css');
+
+    // GET SAVED COLOR
+    $saved_grad_key = get_option('lw_map_gradient', 'default');
+    $grads = lw_get_gradients();
+    $g_css = isset($grads[$saved_grad_key]) ? $grads[$saved_grad_key]['css'] : $grads['default']['css'];
+    $g_hex = isset($grads[$saved_grad_key]) ? $grads[$saved_grad_key]['hex'] : $grads['default']['hex'];
+
+    $custom_css = "
+        :root { --lw-grad: $g_css; --lw-hex: $g_hex; }
+        
+        /* --- GLOBAL COLOR OVERRIDES --- */
+        .text-primary, .text-primary i, h5.text-primary, .lw-card-header h5 i { color: var(--lw-hex) !important; }
+        a { text-decoration: none; }
+
+        /* Tabs Logic */
+        .nav-pills .nav-link { color: #64748b !important; font-weight: 600; border: 1px solid transparent; }
+        .nav-pills .nav-link i { color: #94a3b8; }
+        .nav-pills .nav-link:hover { color: var(--lw-hex) !important; background-color: #f8fafc; border-color: #f1f5f9; }
+        .nav-pills .nav-link:hover i { color: var(--lw-hex) !important; }
+        .nav-pills .nav-link.active { background: var(--lw-grad) !important; color: white !important; border-color: transparent; }
+        .nav-pills .nav-link.active i { color: white !important; }
+
+        /* Buttons & Controls */
+        .btn-primary, .btn-success { background: var(--lw-grad) !important; border: none !important; color: #fff !important; }
+        .btn-primary:hover, .btn-success:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn-outline-primary { color: var(--lw-hex) !important; border-color: var(--lw-hex) !important; background: transparent; }
+        .btn-outline-primary:hover { background: var(--lw-grad) !important; color: white !important; border-color: transparent !important; }
+        
+        .lw-form-control:focus { border-color: var(--lw-hex) !important; box-shadow: 0 0 0 3px rgba(var(--lw-hex), 0.1) !important; }
+        
+        /* Active Elements */
+        .lw-stat-card.blue { border-left-color: var(--lw-hex) !important; }
+        .lw-stat-card.blue i { color: var(--lw-hex) !important; }
+        .lw-dash-item.active { border-left-color: var(--lw-hex) !important; color: var(--lw-hex) !important; background-color: #f8fafc; }
+        .lw-dash-item.active i { color: var(--lw-hex) !important; }
+
+        /* --- FIXED SWITCHER CSS --- */
+        .form-switch .form-check-input {
+            height: 1.5em; width: 3em; margin-left: -2.5em; 
+            background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e\");
+            background-position: left center; border-radius: 2em; transition: background-position .15s ease-in-out;
+            appearance: none !important; -webkit-appearance: none !important;
+            background-color: #cbd5e1; border: none; cursor: pointer;
+        }
+        .form-switch .form-check-input:checked {
+            background-position: right center; background-color: var(--lw-hex) !important; background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e\");
+        }
+        .form-check { padding-left: 3.5em; min-height: 1.5em; display: flex; align-items: center; }
+
+        /* --- GRADIENT LIST (SCROLL) --- */
+        .gradient-scroll-box { height: 350px; overflow-y: auto; padding: 5px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+        .gradient-list-item { 
+            cursor: pointer; border-bottom: 1px solid #f1f5f9; padding: 12px 15px; 
+            display: flex; align-items: center; transition: all 0.2s; 
+        }
+        .gradient-list-item:last-child { border-bottom: none; }
+        .gradient-list-item:hover { background-color: #f8fafc; padding-left: 20px; }
+        .gradient-list-item.active { background-color: #f0f9ff; }
+        .gradient-list-item.active .gradient-label { color: var(--lw-hex); font-weight: 700; }
+        .gradient-preview-circle { 
+            width: 28px; height: 28px; border-radius: 50%; margin-right: 15px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #fff; flex-shrink: 0;
+        }
+        .gradient-label { font-size: 14px; color: #475569; font-weight: 500; }
+
+        /* --- MODERN MODAL STYLING --- */
+        #userSelectorModal .modal-content { border-radius: 12px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        #userSelectorModal .modal-header { background: #fff; padding: 15px 20px; border-bottom: 1px solid #f1f5f9; }
+        #userSelectorModal .modal-title { font-size: 1.1rem; }
+        #userSelectorModal .modal-body { padding: 0; background: #f8fafc; }
+        .lw-user-search-wrapper { padding: 15px; background: #fff; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); z-index: 10; position: relative; }
+        .lw-user-list { padding: 10px; max-height: 400px; overflow-y: auto; }
+        .user-list-item-label { 
+            cursor: pointer; display: flex; align-items: center; padding: 12px 15px; 
+            border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; background: #fff; border: 1px solid transparent;
+        }
+        .user-list-item-label:hover { background: #fff; border-color: #cbd5e1; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        .user-list-item-label:has(input:checked) { background: #eff6ff; border-color: var(--lw-hex); }
+        .user-avatar-placeholder { width: 36px; height: 36px; background: #f1f5f9; color: #94a3b8; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold; font-size: 14px; }
+        .user-list-item-label:has(input:checked) .user-avatar-placeholder { background: var(--lw-grad); color: #fff; }
+
+        /* --- LAYOUT UTILS --- */
+        .lw-admin-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+        .lw-card-header { background: #f8fafc; padding: 12px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .lw-card-header h5 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #334155; }
+        .lw-form-control { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; width: 100%; }
+        .lw-sticky-footer { position: sticky; bottom: 0; background: #fff; padding: 15px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.03); margin: 0 -12px -12px -12px; border-radius: 0 0 8px 8px; z-index: 10; }
+
+        /* Other UI */
+        .lw-map-wrapper { position: relative; height: 100%; min-height: 600px; }
+        .lw-map-container { height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); z-index: 1; border: 1px solid #e2e8f0;}
+        .lw-admin-col-left { height: 600px; overflow-y: auto; padding-right: 8px; }
+        .lw-stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; transition: transform 0.2s; position: relative; overflow: hidden; height: 100%; }
+        .lw-stat-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 2px; letter-spacing: 0.5px; }
+        .lw-stat-number { font-size: 1.5rem; font-weight: 700; color: #1e293b; line-height: 1; }
+        
+        .point-item { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; background: #fff; overflow: hidden; }
+        .point-header { display: flex; align-items: center; justify-content: space-between; padding: 0 15px; cursor: pointer; height: 52px; background-color: #fff; }
+        .point-badge { color: #fff; background-color: #94a3b8; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+        .point-item.status-saved .point-badge { background-color: #10b981; }
+        .point-item.status-new .point-badge { background-color: #f43f5e; }
+        .point-item.status-new { border-left: 3px solid #f43f5e; }
+        .point-item.status-saved { border-left: 3px solid #10b981; }
+        .point-body { padding: 20px; display: none; background: #fff; border-top: 1px solid #f1f5f9; }
+        .point-item.open .point-body { display: block; animation: slideDown 0.2s ease-out; }
+        .lw-label { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; }
+        .icon-select-improved { display: flex; align-items: stretch; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; height: 38px; overflow: hidden; }
+        .icon-preview-box { width: 40px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-right: 1px solid #e2e8f0; }
+        .lw-icon-preview-small { width: 20px !important; height: 20px !important; object-fit: contain; }
+        .point-footer-action { margin-top: 20px; padding-top: 15px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .btn-delete-custom { color: #ef4444; background: #fef2f2; border: 1px solid #fee2e2; padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-delete-custom:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .lw-card { border: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .lw-card-thumb-wrap { height: 140px; border-radius: 6px 6px 0 0; overflow: hidden; position: relative; background: var(--lw-grad); }
+        .lw-card-title { font-size: 16px; font-weight: 700; margin: 10px 0 5px 0; color: #1e293b; }
+        .lw-card-btn { background: var(--lw-grad) !important; border-radius: 6px; font-weight: 600; margin-top: 10px; padding: 10px 0; transition: opacity 0.2s; color: #fff !important; text-decoration: none !important; display: block; text-align: center; }
+        .lw-card-btn:hover { opacity: 0.9; }
+    ";
+    wp_add_inline_style('leaflet-css', $custom_css);
+}
+
+// ==========================================
+// 3. LOGIC & SAVE HANDLER
+// ==========================================
+function lw_get_post_list_for_js() {
+    $args = ['numberposts' => -1, 'post_status' => 'publish', 'post_type' => 'post', 'orderby' => 'date', 'order' => 'DESC'];
+    $posts = get_posts($args);
+    $data = [];
+    foreach ($posts as $p) {
+        $data[] = ['id' => $p->ID, 'title' => $p->post_title, 'link' => get_permalink($p->ID)];
+    }
+    return $data;
+}
+
+function lw_prepare_points_data($points) {
+    if (empty($points)) return [];
+    foreach($points as &$p) {
+        $p['has_post'] = false;
+        $p['thumb'] = ''; 
+        if(!empty($p['link'])) {
+            $post_id = url_to_postid($p['link']);
+            if($post_id) {
+                $p['has_post'] = true;
+                $p['date'] = get_the_date('d/m/Y', $post_id);
+                $excerpt = get_the_excerpt($post_id);
+                if(empty($excerpt)) { $post = get_post($post_id); $excerpt = strip_tags($post->post_content); }
+                $p['excerpt'] = wp_trim_words($excerpt, 20, '...');
+                $thumb = get_the_post_thumbnail_url($post_id, 'medium'); 
+                if(!$thumb) $thumb = 'https://via.placeholder.com/300x150/e0e0e0/999999?text=No+Image';
+                $p['thumb'] = $thumb;
+            }
+        }
+    }
+    return $points;
+}
+
+add_action('before_delete_post', 'lw_map_delete_associated_marker');
+function lw_map_delete_associated_marker($postid) {
+    $post_type = get_post_type($postid);
+    if ($post_type !== 'post' && $post_type !== 'page') return;
+    $permalink = get_permalink($postid);
+    $points = get_option('lw_map_points', []);
+    $original_count = count($points);
+    $points = array_filter($points, function($p) use ($permalink) {
+        return rtrim($p['link'], '/') !== rtrim($permalink, '/');
+    });
+    if (count($points) < $original_count) update_option('lw_map_points', array_values($points));
+}
+
+add_action('admin_init', 'lw_map_handle_save');
+function lw_map_handle_save() {
+    if (!isset($_POST['lw_action'])) return;
+    if (!current_user_can('manage_options')) return;
+
+    if ($_POST['lw_action'] == 'save_icons') {
+        check_admin_referer('lw_save_icons_nonce');
+        $icons = [];
+        if(isset($_POST['icon_name'])) {
+            for($i = 0; $i < count($_POST['icon_name']); $i++){
+                if(!empty($_POST['icon_url'][$i])){
+                    $icons[] = [
+                        'name' => sanitize_text_field($_POST['icon_name'][$i]),
+                        'url'  => esc_url_raw($_POST['icon_url'][$i])
+                    ];
+                }
+            }
+        }
+        update_option('lw_map_icons', $icons);
+        add_settings_error('lw_map_msg', 'lw_map_msg', 'Đã lưu danh sách Icon!', 'success');
+    }
+
+    if ($_POST['lw_action'] == 'save_points') {
+        check_admin_referer('lw_save_points_nonce');
+        $points = [];
+        if(isset($_POST['p_lat'])) {
+            for($i = 0; $i < count($_POST['p_lat']); $i++){
+                $points[] = [
+                    'lat'   => sanitize_text_field($_POST['p_lat'][$i]),
+                    'lng'   => sanitize_text_field($_POST['p_lng'][$i]),
+                    'title' => sanitize_text_field($_POST['p_title'][$i]),
+                    'link'  => esc_url_raw($_POST['p_link'][$i]),
+                    'icon'  => sanitize_text_field($_POST['p_icon'][$i])
+                ];
+            }
+        }
+        update_option('lw_map_points', $points);
+        add_settings_error('lw_map_msg', 'lw_map_msg', 'Đã lưu thành công dữ liệu bản đồ!', 'success');
+    }
+
+    if ($_POST['lw_action'] == 'save_settings') {
+        check_admin_referer('lw_save_settings_nonce');
+        
+        $allowed_ids = [];
+        if(!empty($_POST['allowed_users_ids'])) {
+            $allowed_ids = array_map('intval', explode(',', $_POST['allowed_users_ids']));
+        }
+        update_option('lw_map_allowed_users', $allowed_ids);
+
+        if(isset($_POST['map_theme'])) update_option('lw_map_theme', sanitize_text_field($_POST['map_theme']));
+        if(isset($_POST['map_gradient'])) update_option('lw_map_gradient', sanitize_text_field($_POST['map_gradient']));
+
+        if(isset($_POST['shortcode_tag'])) {
+            $tag = sanitize_text_field($_POST['shortcode_tag']);
+            if(empty($tag)) $tag = 'lw_map';
+            update_option('lw_map_shortcode_tag', $tag);
+        }
+
+        $auto = isset($_POST['auto_display']) ? 'yes' : 'no';
+        update_option('lw_map_auto_display', $auto);
+
+        add_settings_error('lw_map_msg', 'lw_map_msg', 'Đã lưu cài đặt Plugin!', 'success');
+    }
+}
+
+// ==========================================
+// 4. ADMIN UI
+// ==========================================
+function lw_map_admin_page_html() {
+    $all_icons = lw_get_all_icons(); 
+    $raw_points = get_option('lw_map_points', []);
+    $points_with_meta = lw_prepare_points_data($raw_points);
+    $wp_posts = lw_get_post_list_for_js();
+    $custom_icons = array_filter($all_icons, function($i){ return empty($i['is_default']); });
+    $default_icons = array_filter($all_icons, function($i){ return !empty($i['is_default']); });
+    
+    // Settings Data
+    $allowed_users = get_option('lw_map_allowed_users', []);
+    $current_theme = get_option('lw_map_theme', 'osm');
+    $current_gradient = get_option('lw_map_gradient', 'default');
+    $shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
+    $auto_display = get_option('lw_map_auto_display', 'no');
+    
+    // Definitions
+    $map_themes = lw_get_map_themes();
+    $gradients = lw_get_gradients();
+    $current_tile_url = isset($map_themes[$current_theme]) ? $map_themes[$current_theme]['url'] : $map_themes['osm']['url'];
+    $users = get_users(['fields' => ['ID', 'display_name', 'user_email']]);
+    $can_access_settings = lw_can_access_settings();
+    ?>
+    <div class="wrap container-fluid mt-4 lw-admin-page" style="max-width: 1400px;">
+        <div class="d-flex justify-content-between align-items-end mb-3 pb-2 border-bottom">
+            <div>
+                <h2 class="mb-1 fw-bold text-dark"><i class="fas fa-map-marked-alt text-primary me-2"></i>LW Map Pro</h2>
+                <p class="text-muted mb-0 small">Quản lý bản đồ hành trình chuyên nghiệp v5.5.0</p>
+            </div>
+            <div>
+                <button type="button" class="btn btn-white border shadow-sm btn-sm fw-bold text-secondary" onclick="location.reload()"><i class="fas fa-sync me-1"></i> Tải lại</button>
+            </div>
+        </div>
+        
+        <?php settings_errors('lw_map_msg'); ?>
+
+        <ul class="nav nav-pills mb-4" id="lwTabs" role="tablist">
+            <li class="nav-item me-2"><button class="nav-link active fw-bold px-4" id="dash-tab" data-bs-toggle="tab" data-bs-target="#dash-pane" type="button"><i class="fas fa-chart-pie me-2"></i> Dashboard</button></li>
+            <li class="nav-item me-2"><button class="nav-link fw-bold px-4" id="map-tab" data-bs-toggle="tab" data-bs-target="#map-pane" type="button"><i class="fas fa-map-pin me-2"></i> Điểm ghim</button></li>
+            <li class="nav-item me-2"><button class="nav-link fw-bold px-4" id="icon-tab" data-bs-toggle="tab" data-bs-target="#icon-pane" type="button"><i class="fas fa-images me-2"></i> Quản lý Icon</button></li>
+            <?php if($can_access_settings): ?>
+                <li class="nav-item"><button class="nav-link fw-bold px-4" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button"><i class="fas fa-cogs me-2"></i> Cài đặt Plugin</button></li>
+            <?php endif; ?>
+        </ul>
+
+        <div class="tab-content" id="lwTabsContent">
+            
+            <div class="tab-pane fade show active" id="dash-pane">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <div class="lw-stat-card blue">
+                            <div><div class="lw-stat-title">Địa điểm</div><div class="lw-stat-number"><?php echo count($raw_points); ?></div></div>
+                            <i class="fas fa-map-marker-alt text-primary opacity-25 fa-lg"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="lw-stat-card green">
+                            <div><div class="lw-stat-title">Icon tùy chỉnh</div><div class="lw-stat-number"><?php echo count($custom_icons); ?></div></div>
+                            <i class="fas fa-images text-success opacity-25 fa-lg"></i>
+                        </div>
+                    </div>
+                     <div class="col-md-3">
+                        <div class="lw-stat-card purple">
+                            <div><div class="lw-stat-title">Theme</div><div class="lw-stat-number"><?php echo $map_themes[$current_theme]['name']; ?></div></div>
+                            <i class="fas fa-layer-group text-white opacity-25 fa-lg" style="color: #8b5cf6 !important;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="lw-admin-card p-0" style="height: auto;">
+                    <div class="lw-card-header">
+                        <h5 class="text-uppercase text-muted small fw-bold mb-0">Bản đồ tổng quan</h5>
+                    </div>
+                    <div class="row g-0">
+                        <div class="col-md-3">
+                            <div class="lw-dash-sidebar-wrapper" id="lw-dash-sidebar-list"></div>
+                        </div>
+                        <div class="col-md-9">
+                            <div id="lw-dashboard-map" class="lw-map-container lw-dash-map-wrapper" style="height: 500px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="map-pane">
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="lw-admin-card" style="height: 660px;">
+                            <div class="lw-card-header bg-white">
+                                <h5 class="mb-0">Danh sách Điểm</h5>
+                                <button type="submit" form="points-form" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm"><i class="fas fa-save me-1"></i> LƯU</button>
+                            </div>
+                            <div class="p-2 flex-grow-1 bg-light">
+                                <form id="points-form" method="post" class="h-100 d-flex flex-column">
+                                    <?php wp_nonce_field('lw_save_points_nonce'); ?>
+                                    <input type="hidden" name="lw_action" value="save_points">
+                                    <div id="points-container" class="lw-admin-col-left flex-grow-1"></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="lw-admin-card p-0" style="height: 660px;">
+                             <div class="lw-map-wrapper">
+                                <div id="lw-manager-map" class="lw-map-container" style="border:none; height: 660px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="icon-pane">
+                <form method="post">
+                    <?php wp_nonce_field('lw_save_icons_nonce'); ?>
+                    <input type="hidden" name="lw_action" value="save_icons">
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="lw-admin-card" style="height: auto;">
+                                <div class="lw-card-header">
+                                    <h5 class="text-secondary"><i class="fas fa-shield-alt me-2"></i>Icon Hệ thống</h5>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table lw-modern-table">
+                                        <thead><tr><th>Tên loại</th><th class="text-end">Preview</th></tr></thead>
+                                        <tbody>
+                                            <?php foreach($default_icons as $def): ?>
+                                            <tr>
+                                                <td class="fw-bold text-muted"><?php echo esc_html($def['name']); ?></td>
+                                                <td class="text-end"><div class="lw-icon-preview-box d-inline-flex"><img src="<?php echo esc_url($def['url']); ?>" class="lw-icon-preview"></div></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-8">
+                            <div class="lw-admin-card" style="height: auto;">
+                                <div class="lw-card-header bg-white">
+                                    <h5 class="text-primary"><i class="fas fa-magic me-2"></i>Icon Tùy chỉnh</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="add-icon-row"><i class="fas fa-plus me-1"></i> Thêm mới</button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table lw-modern-table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 30%;">Tên Icon</th>
+                                                <th>URL Hình ảnh / Upload</th>
+                                                <th class="text-center" style="width: 80px;">Xem</th>
+                                                <th style="width: 50px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="icon-list-body">
+                                            <?php foreach($custom_icons as $ic): ?>
+                                            <tr>
+                                                <td><input type="text" name="icon_name[]" class="form-control lw-form-control" value="<?php echo esc_attr($ic['name']); ?>" placeholder="Nhập tên..." required></td>
+                                                <td>
+                                                    <div class="input-group">
+                                                        <input type="text" name="icon_url[]" class="form-control lw-form-control img-url-input" value="<?php echo esc_url($ic['url']); ?>" placeholder="https://..." required>
+                                                        <button type="button" class="btn btn-upload btn-upload-img"><i class="fas fa-cloud-upload-alt"></i></button>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center"><div class="lw-icon-preview-box mx-auto"><img src="<?php echo esc_url($ic['url']); ?>" class="lw-icon-preview"></div></td>
+                                                <td class="text-center"><button type="button" class="btn-action-ghost remove-row" title="Xóa"><i class="far fa-trash-alt"></i></button></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="p-3 border-top bg-light text-end">
+                                    <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm"><i class="fas fa-save me-2"></i> LƯU DANH SÁCH ICON</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <?php if($can_access_settings): ?>
+            <div class="tab-pane fade" id="settings-pane">
+                <form method="post" id="settings-form" class="h-100">
+                    <?php wp_nonce_field('lw_save_settings_nonce'); ?>
+                    <input type="hidden" name="lw_action" value="save_settings">
+                    
+                    <div class="row g-4 pb-5">
+                        <div class="col-md-5 d-flex flex-column gap-4">
+                            <div class="lw-admin-card" style="height: auto;">
+                                <div class="lw-card-header">
+                                    <h5><i class="fas fa-users-cog me-2"></i>Phân quyền Truy cập</h5>
+                                </div>
+                                <div class="p-4">
+                                    <p class="text-muted small mb-3">Mặc định <strong>Admin</strong> và <strong>User ID = 1</strong> luôn có quyền.</p>
+                                    <div class="mb-2">
+                                        <div class="border rounded p-2 bg-light mb-2" id="allowed-users-display" style="min-height: 40px;">
+                                            <?php 
+                                            if(empty($allowed_users)) echo '<span class="text-muted fst-italic ms-2 small">Chưa có user nào.</span>';
+                                            else {
+                                                foreach($users as $u) {
+                                                    if(in_array($u->ID, $allowed_users)) echo '<span class="badge bg-primary me-1 mb-1">'.esc_html($u->display_name).'</span>';
+                                                }
+                                            }
+                                            ?>
+                                        </div>
+                                        <input type="hidden" name="allowed_users_ids" id="allowed_users_ids" value="<?php echo implode(',', $allowed_users); ?>">
+                                        <button type="button" class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#userSelectorModal">
+                                            <i class="fas fa-user-plus me-1"></i> Quản lý User
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="lw-admin-card" style="height: auto;">
+                                <div class="lw-card-header">
+                                    <h5><i class="fas fa-code me-2"></i>Cài đặt hiển thị</h5>
+                                </div>
+                                <div class="p-4">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold small text-uppercase text-muted">Shortcode Tag</label>
+                                        <input type="text" name="shortcode_tag" class="form-control lw-form-control fw-bold" value="<?php echo esc_attr($shortcode_tag); ?>" placeholder="lw_map">
+                                        <div class="form-text small">Sử dụng: <code>[<?php echo esc_html($shortcode_tag); ?>]</code></div>
+                                    </div>
+                                    <div class="form-check form-switch p-0">
+                                        <label class="form-check-label fw-bold small" for="autoDisplaySwitch">Tự động hiển thị bản đồ dưới bài Post</label>
+                                        <input class="form-check-input ms-3 float-end" type="checkbox" id="autoDisplaySwitch" name="auto_display" value="yes" <?php checked($auto_display, 'yes'); ?>>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-7 d-flex flex-column gap-4">
+                            <div class="lw-admin-card" style="height: auto;">
+                                <div class="lw-card-header">
+                                    <h5><i class="fas fa-map me-2"></i>Giao diện Bản đồ (Tile)</h5>
+                                </div>
+                                <div class="p-4">
+                                    <select name="map_theme" id="map_theme_select" class="form-select lw-form-control fw-bold">
+                                        <?php foreach($map_themes as $key => $theme): ?>
+                                            <option value="<?php echo esc_attr($key); ?>" <?php selected($current_theme, $key); ?>>
+                                                <?php echo esc_html($theme['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="lw-admin-card" style="height: auto;">
+                                <div class="lw-card-header">
+                                    <h5><i class="fas fa-palette me-2"></i>Màu sắc chủ đạo (Gradient)</h5>
+                                </div>
+                                <div class="p-0">
+                                    <div class="gradient-scroll-box">
+                                        <?php foreach($gradients as $gKey => $gVal): ?>
+                                        <div class="gradient-list-item <?php echo ($current_gradient === $gKey) ? 'active' : ''; ?>" onclick="selectGradient(this, '<?php echo $gKey; ?>', '<?php echo $gVal['css']; ?>')">
+                                            <div class="gradient-preview-circle" style="background: <?php echo $gVal['css']; ?>;"></div>
+                                            <div class="gradient-label"><?php echo $gVal['name']; ?></div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <input type="hidden" name="map_gradient" id="map_gradient_input" value="<?php echo esc_attr($current_gradient); ?>">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lw-sticky-footer">
+                        <button type="submit" id="btn-save-settings" class="btn btn-success btn-lg px-5 shadow fw-bold"><i class="fas fa-save me-2"></i> LƯU CÀI ĐẶT</button>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="postSelectorModal" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fas fa-link text-primary me-2"></i> Chọn bài viết liên kết</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="p-3 border-bottom bg-white sticky-top">
+                        <input type="text" class="form-control lw-form-control" id="post-search-filter" placeholder="🔍 Nhập tiêu đề bài viết để tìm...">
+                    </div>
+                    <div class="list-group list-group-flush" id="modal-post-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="userSelectorModal" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-users-cog me-2 text-primary"></i> Quản lý quyền truy cập</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="lw-user-search-wrapper">
+                         <input type="text" class="form-control lw-form-control mb-2" id="user-search-input" placeholder="🔍 Tìm kiếm user...">
+                         <div class="form-check ms-1">
+                            <input class="form-check-input" type="checkbox" id="check-all-users">
+                            <label class="form-check-label small text-muted" for="check-all-users">Chọn tất cả</label>
+                         </div>
+                    </div>
+                    <div class="lw-user-list" id="user-list-container">
+                        <?php foreach($users as $u): 
+                            $is_checked = in_array($u->ID, $allowed_users) ? 'checked' : '';
+                            $initials = strtoupper(substr($u->display_name, 0, 1));
+                        ?>
+                        <label class="user-list-item-label">
+                            <input class="form-check-input me-3 user-checkbox" type="checkbox" value="<?php echo $u->ID; ?>" data-name="<?php echo esc_attr($u->display_name); ?>" <?php echo $is_checked; ?>>
+                            <div class="user-avatar-placeholder"><?php echo $initials; ?></div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold text-dark"><?php echo esc_html($u->display_name); ?></div>
+                                <div class="small text-muted"><?php echo esc_html($u->user_email); ?> (ID: <?php echo $u->ID; ?>)</div>
+                            </div>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0">
+                    <button type="button" class="btn btn-primary btn-sm fw-bold px-4 rounded-pill shadow-sm" onclick="saveUserPermissions()">Lưu thay đổi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var pointsData = <?php echo json_encode($raw_points); ?>;
+        pointsData.forEach(p => p.status = 'saved');
+        var pointsMeta = <?php echo json_encode($points_with_meta); ?>;
+        var allIcons = <?php echo json_encode($all_icons); ?>;
+        var allPosts = <?php echo json_encode($wp_posts); ?>;
+        var currentTileUrl = "<?php echo $current_tile_url; ?>";
+        
+        var dashboardMap, managerMap, markersLayer; 
+        var activePointIndex = null;
+        var vnCenter = [16.0, 108.0]; var vnZoom = 5;
+
+        function getIconUrl(iconName) {
+            var found = allIcons.find(i => i.name === iconName);
+            return found ? found.url : allIcons[0].url;
+        }
+        function createMap(id) {
+             var map = L.map(id).setView(vnCenter, vnZoom);
+             L.tileLayer(currentTileUrl, { attribution: '&copy; OpenStreetMap & Contributors' }).addTo(map);
+             return map;
+        }
+
+        // TABS LOGIC
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabEl => {
+            tabEl.addEventListener('shown.bs.tab', function (event) {
+                if (event.target.getAttribute('data-bs-target') === '#dash-pane') {
+                    if(!dashboardMap) initDashboardMap();
+                    else setTimeout(() => dashboardMap.invalidateSize(), 100);
+                }
+                if (event.target.getAttribute('data-bs-target') === '#map-pane') {
+                    if(!managerMap) initManagerMap();
+                    else setTimeout(() => managerMap.invalidateSize(), 100);
+                }
+            });
+        });
+
+        // DASHBOARD MAP
+        function initDashboardMap() {
+            dashboardMap = createMap('lw-dashboard-map');
+            var sidebarList = document.getElementById('lw-dash-sidebar-list');
+            sidebarList.innerHTML = '';
+            if(pointsMeta.length === 0) sidebarList.innerHTML = '<div class="p-3 text-center text-muted small">Chưa có địa điểm.</div>';
+            pointsMeta.forEach(function(p) {
+                var customIcon = L.icon({ iconUrl: getIconUrl(p.icon), iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10] });
+                var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(dashboardMap);
+                var popupContent = `<div class='lw-card'>${p.has_post ? `<div class='lw-card-thumb-wrap'><img src='${p.thumb}' class='lw-card-thumb'></div>` : ''}<div class='lw-card-body ${!p.has_post ? 'pt-3' : ''}'><h3 class='lw-card-title'>${p.title}</h3>${p.link ? `<a href='${p.link}' target='_blank' class='lw-card-btn d-block text-center text-decoration-none text-white small'>XEM CHI TIẾT</a>` : ''}</div></div>`;
+                marker.bindPopup(popupContent, { maxWidth: 280, minWidth: 280 });
+                var listItem = document.createElement('div');
+                listItem.className = 'lw-dash-item';
+                listItem.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span class="text-truncate">${p.title}</span>`;
+                listItem.onclick = function() {
+                    document.querySelectorAll('.lw-dash-item').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                    dashboardMap.flyTo([p.lat, p.lng], 14, { duration: 1.5 });
+                    marker.openPopup();
+                };
+                sidebarList.appendChild(listItem);
+            });
+        }
+        if(document.querySelector('#dash-pane').classList.contains('active')) initDashboardMap();
+
+        // MANAGER MAP
+        function initManagerMap() {
+            managerMap = createMap('lw-manager-map');
+            markersLayer = L.layerGroup().addTo(managerMap);
+            L.Control.geocoder({ defaultMarkGeocode: false, position: 'topright', placeholder: '🔍 Tìm địa điểm...', geocoder: L.Control.Geocoder.nominatim() })
+            .on('markgeocode', function(e) { managerMap.fitBounds(e.geocode.bbox); }).addTo(managerMap);
+            renderPointsManager();
+            managerMap.on('click', function(e) {
+                pointsData.push({ lat: e.latlng.lat, lng: e.latlng.lng, title: 'New Location', link: '', icon: allIcons[0].name, status: 'new' });
+                renderPointsManager();
+                setTimeout(() => {
+                    togglePointAccordion(pointsData.length - 1, true);
+                    document.getElementById('points-container').scrollTop = document.getElementById('points-container').scrollHeight;
+                }, 100);
+            });
+        }
+
+        window.togglePointAccordion = function(index, forceOpen = false) {
+            var item = document.getElementById(`point-item-${index}`);
+            if(!item) return;
+            if(forceOpen) { item.classList.add('open'); item.scrollIntoView({behavior: 'smooth', block: 'center'}); } 
+            else { item.classList.toggle('open'); }
+        }
+
+        function renderPointsManager() {
+            var container = document.getElementById('points-container');
+            container.innerHTML = '';
+            markersLayer.clearLayers();
+            pointsData.forEach(function(p, index) {
+                var customIcon = L.icon({ iconUrl: getIconUrl(p.icon), iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10] });
+                var m = L.marker([p.lat, p.lng], {icon: customIcon, draggable: true}).addTo(markersLayer);
+                m.on('dragend', function(ev){
+                    var pos = ev.target.getLatLng();
+                    p.lat = pos.lat; p.lng = pos.lng;
+                    document.querySelector(`input[name="p_lat[]"][data-idx="${index}"]`).value = pos.lat;
+                    document.querySelector(`input[name="p_lng[]"][data-idx="${index}"]`).value = pos.lng;
+                    document.getElementById(`coord-display-${index}`).innerText = `📍 ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
+                });
+                m.on('click', function() { togglePointAccordion(index, true); });
+                var iconOptions = allIcons.map(i => `<option value="${i.name}" ${i.name === p.icon ? 'selected' : ''}>${i.name}</option>`).join('');
+                var html = `<div class="point-item ${p.status === 'new' ? 'status-new' : 'status-saved'}" id="point-item-${index}">
+                    <div class="point-header" onclick="togglePointAccordion(${index})"><div class="d-flex align-items-center flex-grow-1 overflow-hidden"><span class="point-badge">${index+1}</span><h4 class="point-title-display" id="header-title-${index}">${p.title}</h4></div><i class="fas fa-chevron-down text-muted small ms-2"></i></div>
+                    <div class="point-body"><div class="lw-form-group"><span class="lw-label">Tên địa điểm</span><input type="text" name="p_title[]" class="form-control lw-form-control fw-bold title-input" data-index="${index}" value="${p.title}" required></div><div class="lw-form-group"><span class="lw-label">Liên kết</span><div class="d-flex gap-2"><button type="button" class="btn btn-sm ${p.link ? 'btn-outline-primary' : 'btn-outline-secondary'} flex-grow-1 text-start text-truncate open-post-modal" data-index="${index}" style="height: 38px;"><i class="fas fa-link me-1"></i> ${p.link || 'Chọn bài viết...'}</button><input type="hidden" name="p_link[]" value="${p.link}"></div></div><div class="lw-form-group"><span class="lw-label">Icon</span><div class="icon-select-improved"><div class="icon-preview-box"><img src="${getIconUrl(p.icon)}" class="lw-icon-preview-small" id="icon-prev-${index}"></div><select name="p_icon[]" class="form-select form-select-sm icon-selector" data-index="${index}">${iconOptions}</select></div></div><div class="point-footer-action"><span class="coord-text" id="coord-display-${index}">📍 ${parseFloat(p.lat).toFixed(4)}, ${parseFloat(p.lng).toFixed(4)}</span><button type="button" class="btn-delete-custom remove-point" data-index="${index}"><i class="fas fa-trash-alt"></i> Xóa</button></div><input type="hidden" name="p_lat[]" data-idx="${index}" value="${p.lat}"><input type="hidden" name="p_lng[]" data-idx="${index}" value="${p.lng}"></div></div>`;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+            // Re-attach
+            document.querySelectorAll('.open-post-modal').forEach(btn => btn.addEventListener('click', function(e) { e.stopPropagation(); activePointIndex = this.dataset.index; renderPostList(); postModal.show(); }));
+            document.querySelectorAll('.icon-selector').forEach(sel => sel.addEventListener('change', function() { var idx = this.dataset.index; pointsData[idx].icon = this.value; document.getElementById(`icon-prev-${idx}`).src = getIconUrl(this.value); renderPointsManager(); setTimeout(() => togglePointAccordion(idx, true), 50); }));
+            document.querySelectorAll('.title-input').forEach(inp => inp.addEventListener('input', function(){ pointsData[this.dataset.index].title = this.value; document.getElementById(`header-title-${this.dataset.index}`).innerText = this.value || 'Chưa đặt tên'; }));
+            document.querySelectorAll('.remove-point').forEach(b => b.addEventListener('click', function(e) { e.stopPropagation(); if(confirm('Xóa điểm này?')) { pointsData.splice(this.dataset.index, 1); renderPointsManager(); } }));
+        }
+
+        // POST MODAL
+        var postModal = new bootstrap.Modal(document.getElementById('postSelectorModal'));
+        var postListContainer = document.getElementById('modal-post-list');
+        function renderPostList(filter = '') {
+            postListContainer.innerHTML = '';
+            var filtered = allPosts.filter(p => p.title.toLowerCase().includes(filter.toLowerCase()));
+            if(filtered.length === 0) { postListContainer.innerHTML = '<div class="text-center text-muted p-4">Không tìm thấy.</div>'; return; }
+            filtered.forEach(p => {
+                var item = document.createElement('button');
+                item.className = 'list-group-item list-group-item-action py-3 px-4';
+                item.innerHTML = `<span class="fw-medium">${p.title}</span>`;
+                item.onclick = function() {
+                    pointsData[activePointIndex].link = p.link;
+                    if(!pointsData[activePointIndex].title || pointsData[activePointIndex].title === 'New Location') pointsData[activePointIndex].title = p.title;
+                    renderPointsManager();
+                    setTimeout(() => { togglePointAccordion(activePointIndex, true); postModal.hide(); }, 100);
+                };
+                postListContainer.appendChild(item);
+            });
+        }
+        document.getElementById('post-search-filter').addEventListener('input', (e) => renderPostList(e.target.value));
+
+        // ICON UPLOAD
+        if(document.getElementById('add-icon-row')) {
+            var mediaUploader;
+            document.body.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-upload-img')) {
+                    e.preventDefault();
+                    var btn = e.target.closest('.btn-upload-img');
+                    var inputField = btn.previousElementSibling;
+                    if (mediaUploader) { mediaUploader.open(); return; }
+                    mediaUploader = wp.media.frames.file_frame = wp.media({ title: 'Chọn Icon', button: { text: 'Sử dụng' }, multiple: false });
+                    mediaUploader.on('select', function() {
+                        var attachment = mediaUploader.state().get('selection').first().toJSON();
+                        inputField.value = attachment.url;
+                        btn.closest('tr').querySelector('.lw-icon-preview').src = attachment.url;
+                    });
+                    mediaUploader.open();
+                }
+            });
+            document.getElementById('add-icon-row').addEventListener('click', function() {
+                var row = `<tr><td><input type="text" name="icon_name[]" class="form-control lw-form-control" placeholder="Tên icon"></td><td><div class="input-group"><input type="text" name="icon_url[]" class="form-control lw-form-control" placeholder="https://..."><button type="button" class="btn btn-upload btn-upload-img"><i class="fas fa-cloud-upload-alt"></i></button></div></td><td class="text-center"><div class="lw-icon-preview-box mx-auto"><img src="" class="lw-icon-preview"></div></td><td class="text-center"><button type="button" class="btn-action-ghost remove-row"><i class="far fa-trash-alt"></i></button></td></tr>`;
+                document.getElementById('icon-list-body').insertAdjacentHTML('beforeend', row);
+            });
+            document.body.addEventListener('click', function(e){ if(e.target.closest('.remove-row')) e.target.closest('tr').remove(); });
+        }
+
+        // UI HELPERS
+        window.selectGradient = function(el, gKey, cssVal) {
+            document.querySelectorAll('.gradient-list-item').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('map_gradient_input').value = gKey;
+            
+            // Instant Preview for User
+            var saveBtn = document.getElementById('btn-save-settings');
+            if(saveBtn) {
+                saveBtn.style.background = cssVal;
+                saveBtn.style.borderColor = 'transparent';
+            }
+        }
+
+        window.saveUserPermissions = function() {
+            var selectedIds = [];
+            var displayContainer = document.getElementById('allowed-users-display');
+            displayContainer.innerHTML = '';
+            document.querySelectorAll('.user-checkbox:checked').forEach(cb => {
+                selectedIds.push(cb.value);
+                var badge = document.createElement('span');
+                badge.className = 'badge bg-primary me-1 mb-1';
+                badge.innerText = cb.getAttribute('data-name');
+                displayContainer.appendChild(badge);
+            });
+            if(selectedIds.length === 0) displayContainer.innerHTML = '<span class="text-muted fst-italic ms-2 small">Chưa có user nào.</span>';
+            document.getElementById('allowed_users_ids').value = selectedIds.join(',');
+            var userModal = bootstrap.Modal.getInstance(document.getElementById('userSelectorModal'));
+            userModal.hide();
+        }
+        document.getElementById('user-search-input').addEventListener('input', function(e){
+            var val = e.target.value.toLowerCase();
+            document.querySelectorAll('.user-list-item-label').forEach(label => {
+                var text = label.innerText.toLowerCase();
+                label.style.display = text.includes(val) ? 'flex' : 'none';
+            });
+        });
+        document.getElementById('check-all-users').addEventListener('change', function(e){
+             document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = e.target.checked);
+        });
+    });
+    </script>
+    <?php
+}
+
+// ==========================================
+// 5. SHORTCODE & FRONTEND
+// ==========================================
+$lw_shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
+add_shortcode($lw_shortcode_tag, 'lw_map_shortcode_render');
+
+function lw_map_shortcode_render($atts) {
+    $raw_points = get_option('lw_map_points', []);
+    $all_icons = lw_get_all_icons();
+    $points = lw_prepare_points_data($raw_points);
+    
+    // Theme & Gradient Data
+    $current_theme = get_option('lw_map_theme', 'osm');
+    $themes = lw_get_map_themes();
+    $tile_url = isset($themes[$current_theme]) ? $themes[$current_theme]['url'] : $themes['osm']['url'];
+    
+    $current_gradient = get_option('lw_map_gradient', 'default');
+    $gradients = lw_get_gradients();
+    $grad_css = isset($gradients[$current_gradient]) ? $gradients[$current_gradient]['css'] : $gradients['default']['css'];
+
+    $json_points = json_encode($points);
+    $json_icons = json_encode($all_icons);
+
+    return '
+    <style>
+        .lw-card-btn, .lw-card-thumb-wrap { background: ' . $grad_css . ' !important; }
+    </style>
+    <div class="lw-frontend-wrapper" style="position: relative; margin: 30px 0;">
+        <div id="lw-frontend-map" style="height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 1; border:1px solid #ddd;"></div>
+    </div>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if(document.getElementById("lw-frontend-map")) {
+            var map = L.map("lw-frontend-map").setView([16.0, 108.0], 5);
+            L.tileLayer("'.$tile_url.'", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+
+            var points = ' . $json_points . ';
+            var icons = ' . $json_icons . ';
+
+            points.forEach(function(p) {
+                var iconUrl = icons[0].url;
+                var foundIcon = icons.find(i => i.name === p.icon);
+                if(foundIcon) iconUrl = foundIcon.url;
+                var customIcon = L.icon({ iconUrl: iconUrl, iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10] });
+                var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(map);
+                var popupHtml = "<div class=\'lw-card\'>";
+                if(p.has_post) {
+                    popupHtml += "<div class=\'lw-card-thumb-wrap\'><img src=\'" + p.thumb + "\' class=\'lw-card-thumb\'></div>";
+                    popupHtml += "<div class=\'lw-card-body\'>";
+                    popupHtml += "<h3 class=\'lw-card-title\'>" + p.title + "</h3>";
+                    popupHtml += "<div class=\'lw-card-excerpt\'>" + p.excerpt + "</div>";
+                    popupHtml += "<a href=\'" + p.link + "\' target=\'_blank\' class=\'lw-card-btn\'>XEM BÀI VIẾT</a>";
+                    popupHtml += "</div>";
+                } else {
+                    popupHtml += "<div class=\'lw-card-body\'>";
+                    popupHtml += "<h3 class=\'lw-card-title\' style=\'margin-bottom:10px\'>" + p.title + "</h3>";
+                    if(p.link) popupHtml += "<a href=\'" + p.link + "\' target=\'_blank\' class=\'lw-card-btn\'>XEM LIÊN KẾT</a>";
+                    popupHtml += "</div>";
+                }
+                popupHtml += "</div>";
+                marker.bindPopup(popupHtml, { maxWidth: 280, minWidth: 280 });
+            });
+        }
+    });
+    </script>';
+}
+
+add_filter('the_content', 'lw_auto_display_map');
+function lw_auto_display_map($content) {
+    if (is_single() && get_post_type() == 'post' && get_option('lw_map_auto_display', 'no') == 'yes') {
+        $shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
+        $content .= do_shortcode('[' . $shortcode_tag . ']');
+    }
+    return $content;
+}
