@@ -11,22 +11,44 @@ class LW_Map_Public {
         // Chỉ load assets nếu có shortcode hoặc auto display để tối ưu
         global $post;
         $tag = get_option('lw_map_shortcode_tag', 'lw_map');
-        $has_shortcode = is_a( $post, 'WP_Post' ) && has_shortcode( $post->post_content, $tag );
-        $auto_display = get_option('lw_map_auto_display', 'no') == 'yes';
+        $has_shortcode = false;
+        
+        // Kiểm tra shortcode trong post content
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, $tag)) {
+            $has_shortcode = true;
+        }
+        
+        // Kiểm tra auto display (chỉ trên single post)
+        $auto_display = false;
+        if (is_single() && get_post_type() == 'post' && get_option('lw_map_auto_display', 'no') == 'yes') {
+            // Kiểm tra xem có điểm nào không
+            $raw_points = get_option('lw_map_points', []);
+            if (!empty($raw_points) && is_array($raw_points)) {
+                $auto_display = true;
+            }
+        }
 
-        if ( $has_shortcode || $auto_display ) {
+        if ($has_shortcode || $auto_display) {
             wp_enqueue_style( 'leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' );
             wp_enqueue_script( 'leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], null, true );
             
-            // Public CSS/JS
-            // (Bạn có thể tạo file CSS/JS riêng trong folder public nếu muốn, ở đây tôi dùng inline cho gọn vì ít logic frontend)
+            // Enqueue Font Awesome cho icon calendar trong popup
+            wp_enqueue_style( 'fa-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css' );
         }
     }
 
     public function render_shortcode( $atts ) {
         $raw_points = get_option('lw_map_points', []);
+        if (empty($raw_points) || !is_array($raw_points)) {
+            return ''; // Trả về rỗng nếu không có điểm
+        }
+        
         $all_icons = lw_get_all_icons();
         $points = lw_prepare_points_data($raw_points);
+        
+        if (empty($points)) {
+            return ''; // Trả về rỗng nếu không có điểm hợp lệ
+        }
         
         $current_theme = get_option('lw_map_theme', 'osm');
         $themes = lw_get_map_themes();
@@ -161,7 +183,18 @@ class LW_Map_Public {
                 var points = <?php echo $json_points; ?>;
                 var icons = <?php echo $json_icons; ?>;
 
+                if (!points || !Array.isArray(points) || points.length === 0) {
+                    return; // Không có điểm để hiển thị
+                }
+
+                if (!icons || !Array.isArray(icons) || icons.length === 0) {
+                    return; // Không có icon
+                }
+
                 points.forEach(function(p) {
+                    if (!p || !p.lat || !p.lng) {
+                        return; // Bỏ qua điểm không hợp lệ
+                    }
                     var iconUrl = icons[0].url;
                     var foundIcon = icons.find(i => i.name === p.icon);
                     if(foundIcon) iconUrl = foundIcon.url;
@@ -176,27 +209,21 @@ class LW_Map_Public {
                     var popupHtml = "<div class='lw-card'>";
                     if(p.has_post) {
                         popupHtml += "<div class='lw-card-thumb-wrap'><img src='" + p.thumb + "' class='lw-card-thumb'></div>";
-                        popupHtml += "<div class='lw-card-body'>";
-                        popupHtml += "<div class='lw-card-header'>";
-                        popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
-                        if(p.date) {
-                            popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
-                        }
-                        popupHtml += "</div>";
-                        if(p.excerpt) {
-                            popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
-                        }
-                        popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>XEM CHI TIẾT</a>";
-                        popupHtml += "</div>";
-                    } else {
-                        popupHtml += "<div class='lw-card-body'>";
-                        popupHtml += "<div class='lw-card-header'>";
-                        popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
-                        popupHtml += "</div>";
-                        if(p.link) popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>XEM LIÊN KẾT</a>";
-                        popupHtml += "</div>";
+                    }
+                    popupHtml += "<div class='lw-card-body " + (!p.has_post ? 'pt-3' : '') + "'>";
+                    popupHtml += "<div class='lw-card-header'>";
+                    popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
+                    if(p.date) {
+                        popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
                     }
                     popupHtml += "</div>";
+                    if(p.excerpt) {
+                        popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
+                    }
+                    if(p.link) {
+                        popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>" + (p.has_post ? 'XEM CHI TIẾT' : 'XEM LIÊN KẾT') + "</a>";
+                    }
+                    popupHtml += "</div></div>";
                     marker.bindPopup(popupHtml, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
                 });
             }
@@ -207,10 +234,30 @@ class LW_Map_Public {
     }
 
     public function auto_display_map($content) {
-        if (is_single() && get_post_type() == 'post' && get_option('lw_map_auto_display', 'no') == 'yes') {
-            $shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
-            $content .= do_shortcode('[' . $shortcode_tag . ']');
+        // Chỉ hiển thị trên single post và khi auto display được bật
+        if (!is_single() || get_post_type() != 'post' || get_option('lw_map_auto_display', 'no') != 'yes') {
+            return $content;
         }
+        
+        // Kiểm tra xem có điểm nào không
+        $raw_points = get_option('lw_map_points', []);
+        if (empty($raw_points) || !is_array($raw_points)) {
+            return $content; // Không hiển thị map nếu không có điểm
+        }
+        
+        try {
+            $shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
+            $map_content = do_shortcode('[' . $shortcode_tag . ']');
+            
+            // Chỉ thêm nếu shortcode trả về nội dung hợp lệ
+            if (!empty($map_content) && $map_content !== '[' . $shortcode_tag . ']') {
+                $content .= $map_content;
+            }
+        } catch (Exception $e) {
+            // Nếu có lỗi, chỉ trả về content gốc
+            error_log('LW Map Auto Display Error: ' . $e->getMessage());
+        }
+        
         return $content;
     }
 }
