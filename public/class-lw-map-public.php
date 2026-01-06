@@ -44,13 +44,82 @@ class LW_Map_Public {
         ?>
         <style>
             .lw-card-btn, .lw-card-thumb-wrap { background: <?php echo $grad_css; ?> !important; }
-            .lw-card { border: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-            .lw-card-thumb-wrap { height: 140px; border-radius: 6px 6px 0 0; overflow: hidden; position: relative; }
-            .lw-card-thumb { width: 100%; height: 100%; object-fit: cover; }
-            .lw-card-body { padding: 15px; }
-            .lw-card-title { font-size: 16px; font-weight: 700; margin: 0 0 5px 0; color: #1e293b; }
-            .lw-card-excerpt { font-size: 13px; color: #64748b; margin-bottom: 10px; }
-            .lw-card-btn { color: #fff !important; text-decoration: none !important; display: block; text-align: center; padding: 8px 0; border-radius: 6px; font-size: 13px; font-weight: 600; }
+            .lw-card { 
+                border: none; 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+                background: #fff;
+            }
+            .lw-card-thumb-wrap { 
+                height: 180px; 
+                border-radius: 0; 
+                overflow: hidden; 
+                position: relative;
+                background: <?php echo $grad_css; ?>;
+            }
+            .lw-card-thumb { 
+                width: 100%; 
+                height: 100%; 
+                object-fit: cover;
+                transition: transform 0.3s ease;
+            }
+            .lw-card:hover .lw-card-thumb {
+                transform: scale(1.05);
+            }
+            .lw-card-body { 
+                padding: 20px; 
+            }
+            .lw-card-header {
+                margin-bottom: 12px;
+            }
+            .lw-card-title { 
+                font-size: 18px; 
+                font-weight: 700; 
+                margin: 0 0 8px 0; 
+                color: #1e293b;
+                line-height: 1.4;
+            }
+            .lw-card-date {
+                font-size: 12px;
+                color: #94a3b8;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+            .lw-card-date i {
+                font-size: 11px;
+            }
+            .lw-card-excerpt { 
+                font-size: 14px; 
+                color: #64748b; 
+                margin-bottom: 16px;
+                line-height: 1.6;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .lw-card-btn { 
+                color: #fff !important; 
+                text-decoration: none !important; 
+                display: block; 
+                text-align: center; 
+                padding: 12px 20px; 
+                border-radius: 8px; 
+                font-size: 14px; 
+                font-weight: 600;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            }
+            .lw-card-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                opacity: 0.95;
+            }
             /* Map Marker Icon Size Fix */
             .leaflet-marker-icon {
                 width: 25px !important;
@@ -64,6 +133,20 @@ class LW_Map_Public {
                 max-width: 25px !important;
                 max-height: 25px !important;
                 object-fit: contain !important;
+            }
+            /* Leaflet Popup Styling */
+            .leaflet-popup-content-wrapper {
+                border-radius: 12px !important;
+                padding: 0 !important;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+            }
+            .leaflet-popup-content {
+                margin: 0 !important;
+                width: 320px !important;
+            }
+            .leaflet-popup-tip {
+                background: #fff !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
             }
         </style>
         <div class="lw-frontend-wrapper" style="position: relative; margin: 30px 0;">
@@ -94,18 +177,27 @@ class LW_Map_Public {
                     if(p.has_post) {
                         popupHtml += "<div class='lw-card-thumb-wrap'><img src='" + p.thumb + "' class='lw-card-thumb'></div>";
                         popupHtml += "<div class='lw-card-body'>";
+                        popupHtml += "<div class='lw-card-header'>";
                         popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
-                        popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
-                        popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>XEM BÀI VIẾT</a>";
+                        if(p.date) {
+                            popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
+                        }
+                        popupHtml += "</div>";
+                        if(p.excerpt) {
+                            popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
+                        }
+                        popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>XEM CHI TIẾT</a>";
                         popupHtml += "</div>";
                     } else {
                         popupHtml += "<div class='lw-card-body'>";
-                        popupHtml += "<h3 class='lw-card-title' style='margin-bottom:10px'>" + p.title + "</h3>";
+                        popupHtml += "<div class='lw-card-header'>";
+                        popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
+                        popupHtml += "</div>";
                         if(p.link) popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>XEM LIÊN KẾT</a>";
                         popupHtml += "</div>";
                     }
                     popupHtml += "</div>";
-                    marker.bindPopup(popupHtml, { maxWidth: 280, minWidth: 280 });
+                    marker.bindPopup(popupHtml, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
                 });
             }
         });

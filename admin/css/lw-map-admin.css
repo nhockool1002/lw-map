@@ -206,11 +206,97 @@ a { text-decoration: none; }
 .btn-delete-custom:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
-.lw-card { border: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-.lw-card-thumb-wrap { height: 140px; border-radius: 6px 6px 0 0; overflow: hidden; position: relative; background: var(--lw-grad); }
-.lw-card-title { font-size: 16px; font-weight: 700; margin: 10px 0 5px 0; color: #1e293b; }
-.lw-card-btn { background: var(--lw-grad) !important; border-radius: 6px; font-weight: 600; margin-top: 10px; padding: 10px 0; transition: opacity 0.2s; color: #fff !important; text-decoration: none !important; display: block; text-align: center; }
-.lw-card-btn:hover { opacity: 0.9; }
+.lw-card { 
+    border: none; 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    background: #fff;
+}
+.lw-card-thumb-wrap { 
+    height: 180px; 
+    border-radius: 0; 
+    overflow: hidden; 
+    position: relative;
+    background: var(--lw-grad);
+}
+.lw-card-thumb { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.lw-card:hover .lw-card-thumb {
+    transform: scale(1.05);
+}
+.lw-card-body { 
+    padding: 20px; 
+}
+.lw-card-header {
+    margin-bottom: 12px;
+}
+.lw-card-title { 
+    font-size: 18px; 
+    font-weight: 700; 
+    margin: 0 0 8px 0; 
+    color: #1e293b;
+    line-height: 1.4;
+}
+.lw-card-date {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.lw-card-date i {
+    font-size: 11px;
+}
+.lw-card-excerpt {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 16px;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lw-card-btn { 
+    background: var(--lw-grad) !important; 
+    border-radius: 8px; 
+    font-weight: 600; 
+    margin-top: 0; 
+    padding: 12px 20px; 
+    transition: all 0.3s ease; 
+    color: #fff !important; 
+    text-decoration: none !important; 
+    display: block; 
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.lw-card-btn:hover { 
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    opacity: 0.95;
+}
+/* Leaflet Popup Styling */
+.leaflet-popup-content-wrapper {
+    border-radius: 12px !important;
+    padding: 0 !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+}
+.leaflet-popup-content {
+    margin: 0 !important;
+    width: 320px !important;
+}
+.leaflet-popup-tip {
+    background: #fff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
 
 /* --- DASHBOARD SIDEBAR LIST STYLING --- */
 .lw-dash-sidebar-wrapper { height: 500px; overflow-y: auto; padding: 10px; background: #f8fafc; border-right: 1px solid #e2e8f0; border-radius: 8px 0 0 8px; }

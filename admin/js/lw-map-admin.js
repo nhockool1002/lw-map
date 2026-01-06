@@ -61,9 +61,26 @@ document.addEventListener('DOMContentLoaded', function() {
         
         var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(dashboardMap);
         
-        // Popup Content (Giữ nguyên logic cũ)
-        var popupContent = `<div class='lw-card'>${p.has_post ? `<div class='lw-card-thumb-wrap'><img src='${p.thumb}' class='lw-card-thumb'></div>` : ''}<div class='lw-card-body ${!p.has_post ? 'pt-3' : ''}'><h3 class='lw-card-title'>${p.title}</h3>${p.link ? `<a href='${p.link}' target='_blank' class='lw-card-btn d-block text-center text-decoration-none text-white small'>XEM CHI TIẾT</a>` : ''}</div></div>`;
-        marker.bindPopup(popupContent, { maxWidth: 280, minWidth: 280 });
+        // Popup Content - Modern Design
+        var popupContent = `<div class='lw-card'>`;
+        if(p.has_post) {
+            popupContent += `<div class='lw-card-thumb-wrap'><img src='${p.thumb}' class='lw-card-thumb'></div>`;
+        }
+        popupContent += `<div class='lw-card-body ${!p.has_post ? 'pt-3' : ''}'>`;
+        popupContent += `<div class='lw-card-header'>`;
+        popupContent += `<h3 class='lw-card-title'>${p.title}</h3>`;
+        if(p.date) {
+            popupContent += `<div class='lw-card-date'><i class='far fa-calendar-alt'></i> ${p.date}</div>`;
+        }
+        popupContent += `</div>`;
+        if(p.excerpt) {
+            popupContent += `<div class='lw-card-excerpt'>${p.excerpt}</div>`;
+        }
+        if(p.link) {
+            popupContent += `<a href='${p.link}' target='_blank' class='lw-card-btn d-block text-center text-decoration-none text-white small'>XEM CHI TIẾT</a>`;
+        }
+        popupContent += `</div></div>`;
+        marker.bindPopup(popupContent, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
 
         // 2. TẠO ITEM TRONG SIDEBAR (PHẦN SỬA ĐỔI QUAN TRỌNG)
         var listItem = document.createElement('div');
