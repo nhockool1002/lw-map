@@ -127,7 +127,7 @@ class LW_Map_Admin {
             }
     
             // Auto Display
-            $auto = isset($_POST['auto_display']) ? 'yes' : 'no';
+            $auto = isset($_POST['auto_display']) ? sanitize_text_field($_POST['auto_display']) : 'no';
             update_option('lw_map_auto_display', $auto);
             
             add_settings_error('lw_map_msg', 'lw_map_msg', 'Đã lưu cài đặt Plugin!', 'success');

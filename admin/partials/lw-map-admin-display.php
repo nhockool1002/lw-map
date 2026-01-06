@@ -199,9 +199,22 @@
                                     <input type="text" name="shortcode_tag" class="form-control lw-form-control fw-bold" value="<?php echo esc_attr($shortcode_tag); ?>" placeholder="lw_map">
                                     <div class="form-text small">Sử dụng: <code>[<?php echo esc_html($shortcode_tag); ?>]</code></div>
                                 </div>
-                                <div class="form-check form-switch">
-                                    <label class="form-check-label fw-bold small mb-0" for="autoDisplaySwitch">Tự động hiển thị bản đồ dưới bài Post</label>
-                                    <input class="form-check-input" type="checkbox" id="autoDisplaySwitch" name="auto_display" value="yes" <?php checked($auto_display, 'yes'); ?>>
+                                <div class="mb-0">
+                                    <label class="form-label fw-bold small mb-3 d-block">Tự động hiển thị bản đồ dưới bài Post</label>
+                                    <div class="d-flex gap-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="auto_display" id="autoDisplayYes" value="yes" <?php checked($auto_display, 'yes'); ?>>
+                                            <label class="form-check-label fw-bold small" for="autoDisplayYes">
+                                                Có
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="auto_display" id="autoDisplayNo" value="no" <?php checked($auto_display, 'no'); ?>>
+                                            <label class="form-check-label fw-bold small" for="autoDisplayNo">
+                                                Không
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

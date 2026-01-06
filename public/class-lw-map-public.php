@@ -51,6 +51,20 @@ class LW_Map_Public {
             .lw-card-title { font-size: 16px; font-weight: 700; margin: 0 0 5px 0; color: #1e293b; }
             .lw-card-excerpt { font-size: 13px; color: #64748b; margin-bottom: 10px; }
             .lw-card-btn { color: #fff !important; text-decoration: none !important; display: block; text-align: center; padding: 8px 0; border-radius: 6px; font-size: 13px; font-weight: 600; }
+            /* Map Marker Icon Size Fix */
+            .leaflet-marker-icon {
+                width: 25px !important;
+                height: 25px !important;
+                max-width: 25px !important;
+                max-height: 25px !important;
+            }
+            .leaflet-marker-icon img {
+                width: 25px !important;
+                height: 25px !important;
+                max-width: 25px !important;
+                max-height: 25px !important;
+                object-fit: contain !important;
+            }
         </style>
         <div class="lw-frontend-wrapper" style="position: relative; margin: 30px 0;">
             <div id="lw-frontend-map" style="height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 1; border:1px solid #ddd;"></div>
@@ -68,7 +82,12 @@ class LW_Map_Public {
                     var iconUrl = icons[0].url;
                     var foundIcon = icons.find(i => i.name === p.icon);
                     if(foundIcon) iconUrl = foundIcon.url;
-                    var customIcon = L.icon({ iconUrl: iconUrl, iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10] });
+                    var customIcon = L.icon({ 
+                        iconUrl: iconUrl, 
+                        iconSize: [25, 25], 
+                        iconAnchor: [12.5, 25], 
+                        popupAnchor: [0, -25] 
+                    });
                     var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(map);
                     
                     var popupHtml = "<div class='lw-card'>";

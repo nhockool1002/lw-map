@@ -416,6 +416,22 @@ a { text-decoration: none; }
     font-weight: 500 !important;
 }
 
+/* --- MAP MARKER ICON SIZE FIX --- */
+.leaflet-marker-icon {
+    width: 25px !important;
+    height: 25px !important;
+    max-width: 25px !important;
+    max-height: 25px !important;
+}
+
+.leaflet-marker-icon img {
+    width: 25px !important;
+    height: 25px !important;
+    max-width: 25px !important;
+    max-height: 25px !important;
+    object-fit: contain !important;
+}
+
 /* Responsive cho mobile */
 @media (max-width: 768px) {
     .leaflet-control-geocoder-form input {
