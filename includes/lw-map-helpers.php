@@ -142,20 +142,39 @@ function lw_can_access_settings() {
 
 function lw_prepare_points_data($points) {
     if (empty($points)) return [];
+    
     foreach($points as &$p) {
         $p['has_post'] = false;
         $p['thumb'] = ''; 
+        $p['date'] = ''; // Đảm bảo date luôn được khởi tạo
+        $p['excerpt'] = ''; // Đảm bảo excerpt luôn được khởi tạo
+        
         if(!empty($p['link'])) {
             $post_id = url_to_postid($p['link']);
             if($post_id) {
                 $p['has_post'] = true;
-                $p['date'] = get_the_date('d/m/Y', $post_id);
-                $excerpt = get_the_excerpt($post_id);
-                if(empty($excerpt)) { $post = get_post($post_id); $excerpt = strip_tags($post->post_content); }
-                $p['excerpt'] = wp_trim_words($excerpt, 20, '...');
-                $thumb = get_the_post_thumbnail_url($post_id, 'medium'); 
-                if(!$thumb) $thumb = 'https://via.placeholder.com/300x150/e0e0e0/999999?text=No+Image';
-                $p['thumb'] = $thumb;
+                
+                // Lấy post object trực tiếp, không trigger filters
+                $post = get_post($post_id);
+                if ($post) {
+                    // Lấy date an toàn
+                    $p['date'] = date_i18n('d/m/Y', strtotime($post->post_date));
+                    
+                    // Lấy excerpt trực tiếp từ post object để tránh trigger filters
+                    // Không sử dụng get_the_excerpt() vì nó có thể trigger the_content filter
+                    if (!empty($post->post_excerpt)) {
+                        $excerpt = $post->post_excerpt;
+                    } else {
+                        // Lấy từ post_content và strip tags
+                        $excerpt = strip_tags($post->post_content);
+                    }
+                    $p['excerpt'] = wp_trim_words($excerpt, 20, '...');
+                    
+                    // Lấy thumbnail
+                    $thumb = get_the_post_thumbnail_url($post_id, 'medium'); 
+                    if(!$thumb) $thumb = 'https://via.placeholder.com/300x150/e0e0e0/999999?text=No+Image';
+                    $p['thumb'] = $thumb;
+                }
             }
         }
     }

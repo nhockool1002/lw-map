@@ -233,7 +233,14 @@ class LW_Map_Public {
         return ob_get_clean();
     }
 
+    private static $processing_auto_display = false;
+
     public function auto_display_map($content) {
+        // Ngăn chặn vòng lặp vô hạn - nếu đang xử lý thì bỏ qua
+        if (self::$processing_auto_display) {
+            return $content;
+        }
+        
         // Chỉ hiển thị trên single post và khi auto display được bật
         if (!is_single() || get_post_type() != 'post' || get_option('lw_map_auto_display', 'no') != 'yes') {
             return $content;
@@ -244,6 +251,9 @@ class LW_Map_Public {
         if (empty($raw_points) || !is_array($raw_points)) {
             return $content; // Không hiển thị map nếu không có điểm
         }
+        
+        // Đánh dấu đang xử lý để tránh vòng lặp
+        self::$processing_auto_display = true;
         
         try {
             $shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
@@ -256,6 +266,9 @@ class LW_Map_Public {
         } catch (Exception $e) {
             // Nếu có lỗi, chỉ trả về content gốc
             error_log('LW Map Auto Display Error: ' . $e->getMessage());
+        } finally {
+            // Đảm bảo reset flag ngay cả khi có lỗi
+            self::$processing_auto_display = false;
         }
         
         return $content;
