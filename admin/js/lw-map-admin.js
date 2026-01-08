@@ -5,7 +5,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var pointsMeta = lwMapData.pointsWithMeta;
     var allIcons = lwMapData.allIcons;
     var allPosts = lwMapData.allPosts;
+    var mapType = lwMapData.mapType || 'leaflet'; // Default fallback
     var currentTileUrl = lwMapData.tileUrl;
+    var mapboxKey = lwMapData.mapboxKey;
+    var mapboxStyle = lwMapData.mapboxStyle;
     
     var dashboardMap, managerMap, markersLayer; 
     var activePointIndex = null;
@@ -17,14 +20,39 @@ document.addEventListener('DOMContentLoaded', function() {
         return found ? found.url : allIcons[0].url;
     }
 
-    // Helper: Create Leaflet Map
+    // Helper: Create Map (Mapbox or Leaflet)
     function createMap(id) {
         if(!document.getElementById(id)) return null;
         try {
-             var map = L.map(id).setView(vnCenter, vnZoom);
-             L.tileLayer(currentTileUrl, { attribution: '&copy; OpenStreetMap & Contributors' }).addTo(map);
-             return map;
-        } catch(e) { console.error("Map init error:", e); return null; }
+            if (mapType === 'mapbox' && typeof mapboxgl !== 'undefined' && mapboxKey) {
+                // Mapbox
+                mapboxgl.accessToken = mapboxKey;
+                var styleId = mapboxStyle || 'mapbox/streets-v12';
+                var map = new mapboxgl.Map({
+                    container: id,
+                    style: 'mapbox://styles/' + styleId,
+                    center: [vnCenter[1], vnCenter[0]], // Mapbox uses [lng, lat]
+                    zoom: vnZoom
+                });
+                return { type: 'mapbox', instance: map };
+            } else {
+                // Leaflet (default or fallback)
+                var map = L.map(id).setView(vnCenter, vnZoom);
+                L.tileLayer(currentTileUrl || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap & Contributors' }).addTo(map);
+                return { type: 'leaflet', instance: map };
+            }
+        } catch(e) { 
+            console.error("Map init error:", e); 
+            // Fallback to Leaflet if Mapbox fails
+            try {
+                var map = L.map(id).setView(vnCenter, vnZoom);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap & Contributors' }).addTo(map);
+                return { type: 'leaflet', instance: map };
+            } catch(e2) {
+                console.error("Leaflet fallback error:", e2);
+                return null;
+            }
+        }
     }
 
     // 2. TABS & MAP RENDERING LOGIC
@@ -32,36 +60,29 @@ document.addEventListener('DOMContentLoaded', function() {
         tabEl.addEventListener('shown.bs.tab', function (event) {
             if (event.target.getAttribute('data-bs-target') === '#dash-pane') {
                 if(!dashboardMap) initDashboardMap();
-                else setTimeout(() => dashboardMap.invalidateSize(), 100);
+                else {
+                    if (dashboardMap.type === 'mapbox') {
+                        dashboardMap.instance.resize();
+                    } else {
+                        setTimeout(() => dashboardMap.instance.invalidateSize(), 100);
+                    }
+                }
             }
             if (event.target.getAttribute('data-bs-target') === '#map-pane') {
                 if(!managerMap) initManagerMap();
-                else setTimeout(() => managerMap.invalidateSize(), 100);
+                else {
+                    if (managerMap.type === 'mapbox') {
+                        managerMap.instance.resize();
+                    } else {
+                        setTimeout(() => managerMap.instance.invalidateSize(), 100);
+                    }
+                }
             }
         });
     });
 
-    // 3. DASHBOARD MAP (Preview Mode)
-    function initDashboardMap() {
-        dashboardMap = createMap('lw-dashboard-map');
-        if(!dashboardMap) return;
-
-        var sidebarList = document.getElementById('lw-dash-sidebar-list');
-        if(sidebarList) {
-            sidebarList.innerHTML = '';
-            if(pointsMeta.length === 0) sidebarList.innerHTML = '<div class="p-3 text-center text-muted small">Chưa có địa điểm.</div>';
-            pointsMeta.forEach(function(p) {
-        // 1. Tạo Marker trên bản đồ (Giữ nguyên logic cũ)
-        var customIcon = L.icon({ 
-            iconUrl: getIconUrl(p.icon), 
-            iconSize: [25, 25], // Ép về 25x25
-            iconAnchor: [12.5, 25], // Điểm neo (giữa-đáy)
-            popupAnchor: [0, -25] 
-        });
-        
-        var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(dashboardMap);
-        
-        // Popup Content - Modern Design
+    // Helper: Create Popup HTML
+    function createPopupHtml(p) {
         var popupContent = `<div class='lw-card'>`;
         if(p.has_post) {
             popupContent += `<div class='lw-card-thumb-wrap'><img src='${p.thumb}' class='lw-card-thumb'></div>`;
@@ -80,38 +101,93 @@ document.addEventListener('DOMContentLoaded', function() {
             popupContent += `<a href='${p.link}' target='_blank' class='lw-card-btn d-block text-center text-decoration-none text-white small'>XEM CHI TIẾT</a>`;
         }
         popupContent += `</div></div>`;
-        marker.bindPopup(popupContent, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
+        return popupContent;
+    }
 
-        // 2. TẠO ITEM TRONG SIDEBAR (PHẦN SỬA ĐỔI QUAN TRỌNG)
-        var listItem = document.createElement('div');
-        listItem.className = 'lw-dash-item'; // Class khớp với CSS mới
-        
-        // Lấy URL icon chuẩn xác cho từng điểm
-        var iconSrc = getIconUrl(p.icon); 
-
-        // HTML mới: Sử dụng thẻ IMG thay vì thẻ I, thêm div bao bọc để flexbox hoạt động tốt
-        listItem.innerHTML = `
-            <img src="${iconSrc}" class="lw-dash-icon" alt="Icon">
-            <div class="lw-dash-content">
-                <span class="lw-dash-title">${p.title}</span>
-                </div>
-            <i class="fas fa-chevron-right lw-dash-arrow"></i>
-        `;
-
-        // Sự kiện Click (Giữ nguyên logic nhưng tối ưu UX)
-        listItem.onclick = function() {
-            // Xóa class active cũ
-            document.querySelectorAll('.lw-dash-item').forEach(el => el.classList.remove('active'));
-            // Thêm class active cho item này
-            this.classList.add('active');
+    // Helper: Add Marker to Map (supports both Mapbox and Leaflet)
+    function addMarkerToMap(mapObj, point, popupHtml, options) {
+        if (mapObj.type === 'mapbox') {
+            // Mapbox marker
+            var el = document.createElement('div');
+            el.className = 'mapbox-marker';
+            el.style.width = '25px';
+            el.style.height = '25px';
+            el.style.backgroundImage = 'url(' + getIconUrl(point.icon) + ')';
+            el.style.backgroundSize = 'contain';
+            el.style.backgroundRepeat = 'no-repeat';
+            el.style.cursor = 'pointer';
             
-            // Bay đến địa điểm
-            dashboardMap.flyTo([p.lat, p.lng], 15, { duration: 1.2 }); // Zoom level 15 để nhìn rõ hơn
-            marker.openPopup();
-        };
+            var marker = new mapboxgl.Marker(el)
+                .setLngLat([point.lng, point.lat])
+                .setPopup(new mapboxgl.Popup({ offset: 25, maxWidth: '320px', minWidth: '320px' })
+                    .setHTML(popupHtml))
+                .addTo(mapObj.instance);
+            return marker;
+        } else {
+            // Leaflet marker
+            var customIcon = L.icon({ 
+                iconUrl: getIconUrl(point.icon), 
+                iconSize: [25, 25],
+                iconAnchor: [12.5, 25],
+                popupAnchor: [0, -25] 
+            });
+            var marker = L.marker([point.lat, point.lng], {icon: customIcon}).addTo(mapObj.instance);
+            marker.bindPopup(popupHtml, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
+            return marker;
+        }
+    }
 
-        sidebarList.appendChild(listItem);
-    });
+    // 3. DASHBOARD MAP (Preview Mode)
+    function initDashboardMap() {
+        dashboardMap = createMap('lw-dashboard-map');
+        if(!dashboardMap) return;
+
+        var sidebarList = document.getElementById('lw-dash-sidebar-list');
+        if(sidebarList) {
+            sidebarList.innerHTML = '';
+            if(pointsMeta.length === 0) sidebarList.innerHTML = '<div class="p-3 text-center text-muted small">Chưa có địa điểm.</div>';
+            pointsMeta.forEach(function(p) {
+                // Create popup HTML
+                var popupHtml = createPopupHtml(p);
+                
+                // Add marker to map
+                var marker = addMarkerToMap(dashboardMap, p, popupHtml);
+
+                // 2. TẠO ITEM TRONG SIDEBAR
+                var listItem = document.createElement('div');
+                listItem.className = 'lw-dash-item';
+                
+                // Lấy URL icon chuẩn xác cho từng điểm
+                var iconSrc = getIconUrl(p.icon); 
+
+                // HTML mới: Sử dụng thẻ IMG thay vì thẻ I, thêm div bao bọc để flexbox hoạt động tốt
+                listItem.innerHTML = `
+                    <img src="${iconSrc}" class="lw-dash-icon" alt="Icon">
+                    <div class="lw-dash-content">
+                        <span class="lw-dash-title">${p.title}</span>
+                    </div>
+                    <i class="fas fa-chevron-right lw-dash-arrow"></i>
+                `;
+
+                // Sự kiện Click
+                listItem.onclick = function() {
+                    // Xóa class active cũ
+                    document.querySelectorAll('.lw-dash-item').forEach(el => el.classList.remove('active'));
+                    // Thêm class active cho item này
+                    this.classList.add('active');
+                    
+                    // Bay đến địa điểm
+                    if (dashboardMap.type === 'mapbox') {
+                        dashboardMap.instance.flyTo({ center: [p.lng, p.lat], zoom: 15, duration: 1200 });
+                        if (marker.getPopup) marker.getPopup().addTo(dashboardMap.instance);
+                    } else {
+                        dashboardMap.instance.flyTo([p.lat, p.lng], 15, { duration: 1.2 });
+                        marker.openPopup();
+                    }
+                };
+
+                sidebarList.appendChild(listItem);
+            });
         }
     }
     // Auto init if tab is active on load
@@ -122,32 +198,63 @@ document.addEventListener('DOMContentLoaded', function() {
         managerMap = createMap('lw-manager-map');
         if(!managerMap) return;
 
-        markersLayer = L.layerGroup().addTo(managerMap);
-        // Geocoder - Modern Search Bar
-        if(L.Control.Geocoder) {
-            L.Control.geocoder({ 
-                defaultMarkGeocode: false, 
-                position: 'topright', 
-                placeholder: 'Tìm địa điểm...', 
-                geocoder: L.Control.Geocoder.nominatim(),
-                errorMessage: 'Không tìm thấy địa điểm',
-                noResultsMessage: 'Không có kết quả'
-            })
-            .on('markgeocode', function(e) { 
-                managerMap.fitBounds(e.geocode.bbox); 
-            }).addTo(managerMap);
+        // Initialize markers layer based on map type
+        if (managerMap.type === 'mapbox') {
+            markersLayer = []; // Array for Mapbox markers
+            // Geocoder for Mapbox
+            if (typeof mapboxgl !== 'undefined' && typeof MapboxGeocoder !== 'undefined') {
+                var geocoder = new MapboxGeocoder({
+                    accessToken: mapboxKey || '',
+                    mapboxgl: mapboxgl,
+                    marker: false
+                });
+                managerMap.instance.addControl(geocoder);
+                geocoder.on('result', function(e) {
+                    managerMap.instance.flyTo({ center: e.result.center, zoom: 15 });
+                });
+            }
+        } else {
+            markersLayer = L.layerGroup().addTo(managerMap.instance);
+            // Geocoder for Leaflet
+            if(L.Control.Geocoder) {
+                L.Control.geocoder({ 
+                    defaultMarkGeocode: false, 
+                    position: 'topright', 
+                    placeholder: 'Tìm địa điểm...', 
+                    geocoder: L.Control.Geocoder.nominatim(),
+                    errorMessage: 'Không tìm thấy địa điểm',
+                    noResultsMessage: 'Không có kết quả'
+                })
+                .on('markgeocode', function(e) { 
+                    managerMap.instance.fitBounds(e.geocode.bbox); 
+                }).addTo(managerMap.instance);
+            }
         }
 
         renderPointsManager();
-        managerMap.on('click', function(e) {
-            pointsData.push({ lat: e.latlng.lat, lng: e.latlng.lng, title: 'New Location', link: '', icon: allIcons[0].name, status: 'new' });
-            renderPointsManager();
-            setTimeout(() => {
-                togglePointAccordion(pointsData.length - 1, true);
-                var container = document.getElementById('points-container');
-                if(container) container.scrollTop = container.scrollHeight;
-            }, 100);
-        });
+        
+        // Click event handler
+        if (managerMap.type === 'mapbox') {
+            managerMap.instance.on('click', function(e) {
+                pointsData.push({ lat: e.lngLat.lat, lng: e.lngLat.lng, title: 'New Location', link: '', icon: allIcons[0].name, status: 'new' });
+                renderPointsManager();
+                setTimeout(() => {
+                    togglePointAccordion(pointsData.length - 1, true);
+                    var container = document.getElementById('points-container');
+                    if(container) container.scrollTop = container.scrollHeight;
+                }, 100);
+            });
+        } else {
+            managerMap.instance.on('click', function(e) {
+                pointsData.push({ lat: e.latlng.lat, lng: e.latlng.lng, title: 'New Location', link: '', icon: allIcons[0].name, status: 'new' });
+                renderPointsManager();
+                setTimeout(() => {
+                    togglePointAccordion(pointsData.length - 1, true);
+                    var container = document.getElementById('points-container');
+                    if(container) container.scrollTop = container.scrollHeight;
+                }, 100);
+            });
+        }
     }
 
     window.togglePointAccordion = function(index, forceOpen = false) {
@@ -161,28 +268,79 @@ document.addEventListener('DOMContentLoaded', function() {
         var container = document.getElementById('points-container');
         if(!container) return;
         container.innerHTML = '';
-        markersLayer.clearLayers();
+        
+        // Clear markers based on map type
+        if (managerMap.type === 'mapbox') {
+            if (markersLayer && markersLayer.length > 0) {
+                markersLayer.forEach(function(marker) {
+                    marker.remove();
+                });
+            }
+            markersLayer = [];
+        } else {
+            if (markersLayer && markersLayer.clearLayers) {
+                markersLayer.clearLayers();
+            }
+        }
         
         pointsData.forEach(function(p, index) {
-            var customIcon = L.icon({ 
-                iconUrl: getIconUrl(p.icon), 
-                iconSize: [25, 25], // Ép về 25x25
-                iconAnchor: [12.5, 25], 
-                popupAnchor: [0, -25] 
-            });
-            var m = L.marker([p.lat, p.lng], {icon: customIcon, draggable: true}).addTo(markersLayer);
+            var m;
             
-            // Drag Event
-            m.on('dragend', function(ev){
-                var pos = ev.target.getLatLng();
-                p.lat = pos.lat; p.lng = pos.lng;
-                var latInput = document.querySelector(`input[name="p_lat[]"][data-idx="${index}"]`);
-                var lngInput = document.querySelector(`input[name="p_lng[]"][data-idx="${index}"]`);
-                if(latInput) latInput.value = pos.lat;
-                if(lngInput) lngInput.value = pos.lng;
-                document.getElementById(`coord-display-${index}`).innerText = `📍 ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
-            });
-            m.on('click', function() { togglePointAccordion(index, true); });
+            if (managerMap.type === 'mapbox') {
+                // Mapbox marker
+                var el = document.createElement('div');
+                el.className = 'mapbox-marker';
+                el.style.width = '25px';
+                el.style.height = '25px';
+                el.style.backgroundImage = 'url(' + getIconUrl(p.icon) + ')';
+                el.style.backgroundSize = 'contain';
+                el.style.backgroundRepeat = 'no-repeat';
+                el.style.cursor = 'move';
+                
+                m = new mapboxgl.Marker({ element: el, draggable: true })
+                    .setLngLat([p.lng, p.lat])
+                    .addTo(managerMap.instance);
+                
+                // Drag Event for Mapbox
+                m.on('dragend', function() {
+                    var pos = m.getLngLat();
+                    p.lat = pos.lat;
+                    p.lng = pos.lng;
+                    var latInput = document.querySelector(`input[name="p_lat[]"][data-idx="${index}"]`);
+                    var lngInput = document.querySelector(`input[name="p_lng[]"][data-idx="${index}"]`);
+                    if(latInput) latInput.value = pos.lat;
+                    if(lngInput) lngInput.value = pos.lng;
+                    document.getElementById(`coord-display-${index}`).innerText = `📍 ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
+                });
+                
+                // Click event
+                el.addEventListener('click', function() { togglePointAccordion(index, true); });
+                
+                markersLayer.push(m);
+            } else {
+                // Leaflet marker
+                var customIcon = L.icon({ 
+                    iconUrl: getIconUrl(p.icon), 
+                    iconSize: [25, 25],
+                    iconAnchor: [12.5, 25], 
+                    popupAnchor: [0, -25] 
+                });
+                m = L.marker([p.lat, p.lng], {icon: customIcon, draggable: true}).addTo(markersLayer);
+                
+                // Drag Event for Leaflet
+                m.on('dragend', function(ev){
+                    var pos = ev.target.getLatLng();
+                    p.lat = pos.lat;
+                    p.lng = pos.lng;
+                    var latInput = document.querySelector(`input[name="p_lat[]"][data-idx="${index}"]`);
+                    var lngInput = document.querySelector(`input[name="p_lng[]"][data-idx="${index}"]`);
+                    if(latInput) latInput.value = pos.lat;
+                    if(lngInput) lngInput.value = pos.lng;
+                    document.getElementById(`coord-display-${index}`).innerText = `📍 ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
+                });
+                
+                m.on('click', function() { togglePointAccordion(index, true); });
+            }
 
             var iconOptions = allIcons.map(i => `<option value="${i.name}" ${i.name === p.icon ? 'selected' : ''}>${i.name}</option>`).join('');
             

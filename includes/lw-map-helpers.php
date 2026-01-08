@@ -15,12 +15,36 @@ function lw_get_all_icons() {
 }
 
 function lw_get_map_themes() {
+    // Leaflet themes (tile layers)
     return [
         'osm' => ['name' => 'OpenStreetMap (Chuẩn)', 'url' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'],
         'carto_light' => ['name' => 'CartoDB Positron (Sáng)', 'url' => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'],
         'carto_dark' => ['name' => 'CartoDB Dark Matter (Tối)', 'url' => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'],
         'esri_sat' => ['name' => 'Esri World Imagery (Vệ tinh)', 'url' => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']
     ];
+}
+
+function lw_get_mapbox_styles() {
+    // Mapbox styles
+    return [
+        'streets' => ['name' => 'Streets (Đường phố)', 'style' => 'mapbox/streets-v12'],
+        'outdoors' => ['name' => 'Outdoors (Ngoài trời)', 'style' => 'mapbox/outdoors-v12'],
+        'light' => ['name' => 'Light (Sáng)', 'style' => 'mapbox/light-v11'],
+        'dark' => ['name' => 'Dark (Tối)', 'style' => 'mapbox/dark-v11'],
+        'satellite' => ['name' => 'Satellite (Vệ tinh)', 'style' => 'mapbox/satellite-v9'],
+        'satellite_streets' => ['name' => 'Satellite Streets (Vệ tinh + Đường)', 'style' => 'mapbox/satellite-streets-v12'],
+        'navigation_day' => ['name' => 'Navigation Day (Điều hướng ngày)', 'style' => 'mapbox/navigation-day-v1'],
+        'navigation_night' => ['name' => 'Navigation Night (Điều hướng đêm)', 'style' => 'mapbox/navigation-night-v1'],
+    ];
+}
+
+function lw_get_mapbox_api_key() {
+    $key = get_option('lw_map_mapbox_key', '');
+    if (empty($key)) {
+        // Default key từ yêu cầu
+        return 'pk.eyJ1IjoibmhvY2tvb2wxMDAyIiwiYSI6ImNtZG9zeXJiNjA1c2oya243cHpxY2FkYjUifQ.5hIXQrIc4Tgzp8Zkusf50Q';
+    }
+    return $key;
 }
 
 function lw_get_gradients() {

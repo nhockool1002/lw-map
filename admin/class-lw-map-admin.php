@@ -29,10 +29,24 @@ class LW_Map_Admin {
         wp_enqueue_style( 'bs5-css', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' );
         wp_enqueue_script( 'bs5-js', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js', [], null, true );
         wp_enqueue_style( 'fa-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css' );
-        wp_enqueue_style( 'leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' );
-        wp_enqueue_script( 'leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], null, true );
-        wp_enqueue_script( 'leaflet-geocoder-js', 'https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js', ['leaflet-js'], null, true );
-        wp_enqueue_style( 'leaflet-geocoder-css', 'https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css' );
+        
+        // Load map libraries based on selected map type
+        $map_type = get_option('lw_map_type', 'mapbox'); // Default là mapbox
+        
+        if ($map_type === 'mapbox') {
+            // Mapbox GL JS
+            wp_enqueue_style( 'mapbox-gl-css', 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' );
+            wp_enqueue_script( 'mapbox-gl-js', 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js', [], null, true );
+            // Mapbox Geocoder
+            wp_enqueue_style( 'mapbox-geocoder-css', 'https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css' );
+            wp_enqueue_script( 'mapbox-geocoder-js', 'https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js', ['mapbox-gl-js'], null, true );
+        } else {
+            // Leaflet
+            wp_enqueue_style( 'leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' );
+            wp_enqueue_script( 'leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], null, true );
+            wp_enqueue_script( 'leaflet-geocoder-js', 'https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js', ['leaflet-js'], null, true );
+            wp_enqueue_style( 'leaflet-geocoder-css', 'https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css' );
+        }
 
         wp_enqueue_style( 'lw-map-admin-css', LW_MAP_PLUGIN_URL . 'admin/css/lw-map-admin.css', [], LW_MAP_VERSION );
         wp_enqueue_script( 'lw-map-admin-js', LW_MAP_PLUGIN_URL . 'admin/js/lw-map-admin.js', ['jquery'], LW_MAP_VERSION, true );
@@ -50,17 +64,37 @@ class LW_Map_Admin {
         $raw_points = get_option('lw_map_points', []);
         foreach($raw_points as &$p) { $p['status'] = 'saved'; }
         
-        $current_theme = get_option('lw_map_theme', 'osm');
-        $map_themes = lw_get_map_themes();
-        $current_tile_url = isset($map_themes[$current_theme]) ? $map_themes[$current_theme]['url'] : $map_themes['osm']['url'];
-
-        wp_localize_script( 'lw-map-admin-js', 'lwMapData', [
-            'points' => $raw_points,
-            'pointsWithMeta' => lw_prepare_points_data($raw_points),
-            'allIcons' => lw_get_all_icons(),
-            'allPosts' => lw_get_post_list_for_js(),
-            'tileUrl' => $current_tile_url
-        ]);
+        $map_type = get_option('lw_map_type', 'mapbox');
+        $mapbox_key = lw_get_mapbox_api_key();
+        
+        if ($map_type === 'mapbox') {
+            $current_style = get_option('lw_map_mapbox_style', 'streets');
+            $mapbox_styles = lw_get_mapbox_styles();
+            $current_style_id = isset($mapbox_styles[$current_style]) ? $mapbox_styles[$current_style]['style'] : $mapbox_styles['streets']['style'];
+            
+            wp_localize_script( 'lw-map-admin-js', 'lwMapData', [
+                'points' => $raw_points,
+                'pointsWithMeta' => lw_prepare_points_data($raw_points),
+                'allIcons' => lw_get_all_icons(),
+                'allPosts' => lw_get_post_list_for_js(),
+                'mapType' => 'mapbox',
+                'mapboxKey' => $mapbox_key,
+                'mapboxStyle' => $current_style_id
+            ]);
+        } else {
+            $current_theme = get_option('lw_map_theme', 'osm');
+            $map_themes = lw_get_map_themes();
+            $current_tile_url = isset($map_themes[$current_theme]) ? $map_themes[$current_theme]['url'] : $map_themes['osm']['url'];
+            
+            wp_localize_script( 'lw-map-admin-js', 'lwMapData', [
+                'points' => $raw_points,
+                'pointsWithMeta' => lw_prepare_points_data($raw_points),
+                'allIcons' => lw_get_all_icons(),
+                'allPosts' => lw_get_post_list_for_js(),
+                'mapType' => 'leaflet',
+                'tileUrl' => $current_tile_url
+            ]);
+        }
     }
 
     public function handle_save() {
@@ -115,8 +149,22 @@ class LW_Map_Admin {
             }
             update_option('lw_map_allowed_users', $allowed_ids);
     
-            // Theme & Gradient
+            // Map Type (Mapbox or Leaflet)
+            if(isset($_POST['map_type'])) {
+                $map_type = sanitize_text_field($_POST['map_type']);
+                if(in_array($map_type, ['mapbox', 'leaflet'])) {
+                    update_option('lw_map_type', $map_type);
+                }
+            }
+            
+            // Mapbox API Key
+            if(isset($_POST['mapbox_key'])) {
+                update_option('lw_map_mapbox_key', sanitize_text_field($_POST['mapbox_key']));
+            }
+            
+            // Theme & Style (riêng cho từng loại map)
             if(isset($_POST['map_theme'])) update_option('lw_map_theme', sanitize_text_field($_POST['map_theme']));
+            if(isset($_POST['mapbox_style'])) update_option('lw_map_mapbox_style', sanitize_text_field($_POST['mapbox_style']));
             if(isset($_POST['map_gradient'])) update_option('lw_map_gradient', sanitize_text_field($_POST['map_gradient']));
     
             // Shortcode
@@ -156,12 +204,16 @@ class LW_Map_Admin {
         
         // Settings Data
         $allowed_users = get_option('lw_map_allowed_users', []);
+        $map_type = get_option('lw_map_type', 'mapbox'); // Default là mapbox
         $current_theme = get_option('lw_map_theme', 'osm');
+        $current_mapbox_style = get_option('lw_map_mapbox_style', 'streets');
         $current_gradient = get_option('lw_map_gradient', 'default');
         $shortcode_tag = get_option('lw_map_shortcode_tag', 'lw_map');
         $auto_display = get_option('lw_map_auto_display', 'no');
+        $mapbox_key = get_option('lw_map_mapbox_key', lw_get_mapbox_api_key());
         
         $map_themes = lw_get_map_themes();
+        $mapbox_styles = lw_get_mapbox_styles();
         $gradients = lw_get_gradients();
         // Shuffle gradients để hiển thị ngẫu nhiên (giữ nguyên key để không ảnh hưởng đến giá trị đã lưu)
         $gradient_keys = array_keys($gradients);

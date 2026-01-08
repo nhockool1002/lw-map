@@ -29,8 +29,17 @@ class LW_Map_Public {
         }
 
         if ($has_shortcode || $auto_display) {
-            wp_enqueue_style( 'leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' );
-            wp_enqueue_script( 'leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], null, true );
+            $map_type = get_option('lw_map_type', 'mapbox'); // Default là mapbox
+            
+            if ($map_type === 'mapbox') {
+                // Mapbox GL JS
+                wp_enqueue_style( 'mapbox-gl-css', 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' );
+                wp_enqueue_script( 'mapbox-gl-js', 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js', [], null, true );
+            } else {
+                // Leaflet
+                wp_enqueue_style( 'leaflet-css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' );
+                wp_enqueue_script( 'leaflet-js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], null, true );
+            }
             
             // Enqueue Font Awesome cho icon calendar trong popup
             wp_enqueue_style( 'fa-css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css' );
@@ -50,9 +59,18 @@ class LW_Map_Public {
             return ''; // Trả về rỗng nếu không có điểm hợp lệ
         }
         
-        $current_theme = get_option('lw_map_theme', 'osm');
-        $themes = lw_get_map_themes();
-        $tile_url = isset($themes[$current_theme]) ? $themes[$current_theme]['url'] : $themes['osm']['url'];
+        $map_type = get_option('lw_map_type', 'mapbox'); // Default là mapbox
+        $mapbox_key = lw_get_mapbox_api_key();
+        
+        if ($map_type === 'mapbox') {
+            $current_mapbox_style = get_option('lw_map_mapbox_style', 'streets');
+            $mapbox_styles = lw_get_mapbox_styles();
+            $current_style_id = isset($mapbox_styles[$current_mapbox_style]) ? $mapbox_styles[$current_mapbox_style]['style'] : $mapbox_styles['streets']['style'];
+        } else {
+            $current_theme = get_option('lw_map_theme', 'osm');
+            $themes = lw_get_map_themes();
+            $tile_url = isset($themes[$current_theme]) ? $themes[$current_theme]['url'] : $themes['osm']['url'];
+        }
         
         $current_gradient = get_option('lw_map_gradient', 'default');
         $gradients = lw_get_gradients();
@@ -170,34 +188,94 @@ class LW_Map_Public {
                 background: #fff !important;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
             }
+            /* Mapbox Marker */
+            .mapbox-marker {
+                width: 25px !important;
+                height: 25px !important;
+                background-size: contain !important;
+                background-repeat: no-repeat !important;
+                cursor: pointer;
+            }
         </style>
         <div class="lw-frontend-wrapper" style="position: relative; margin: 30px 0;">
             <div id="lw-frontend-map" style="height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 1; border:1px solid #ddd;"></div>
         </div>
         <script>
         document.addEventListener("DOMContentLoaded", function() {
-            if(document.getElementById("lw-frontend-map")) {
+            if(!document.getElementById("lw-frontend-map")) return;
+            
+            var points = <?php echo $json_points; ?>;
+            var icons = <?php echo $json_icons; ?>;
+            var mapType = '<?php echo esc_js($map_type); ?>';
+
+            if (!points || !Array.isArray(points) || points.length === 0) {
+                return;
+            }
+
+            if (!icons || !Array.isArray(icons) || icons.length === 0) {
+                return;
+            }
+
+            if (mapType === 'mapbox' && typeof mapboxgl !== 'undefined') {
+                // Mapbox Map
+                mapboxgl.accessToken = '<?php echo esc_js($mapbox_key); ?>';
+                var map = new mapboxgl.Map({
+                    container: 'lw-frontend-map',
+                    style: 'mapbox://styles/<?php echo esc_js($current_style_id); ?>',
+                    center: [108.0, 16.0],
+                    zoom: 5
+                });
+
+                map.on('load', function() {
+                    points.forEach(function(p) {
+                        if (!p || !p.lat || !p.lng) return;
+                        
+                        var iconUrl = icons[0].url;
+                        var foundIcon = icons.find(i => i.name === p.icon);
+                        if(foundIcon) iconUrl = foundIcon.url;
+                        
+                        var el = document.createElement('div');
+                        el.className = 'mapbox-marker';
+                        el.style.backgroundImage = 'url(' + iconUrl + ')';
+                        
+                        var popupHtml = "<div class='lw-card'>";
+                        if(p.has_post) {
+                            popupHtml += "<div class='lw-card-thumb-wrap'><img src='" + p.thumb + "' class='lw-card-thumb'></div>";
+                        }
+                        popupHtml += "<div class='lw-card-body " + (!p.has_post ? 'pt-3' : '') + "'>";
+                        popupHtml += "<div class='lw-card-header'>";
+                        popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
+                        if(p.date) {
+                            popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
+                        }
+                        popupHtml += "</div>";
+                        if(p.excerpt) {
+                            popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
+                        }
+                        if(p.link) {
+                            popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>" + (p.has_post ? 'XEM CHI TIẾT' : 'XEM LIÊN KẾT') + "</a>";
+                        }
+                        popupHtml += "</div></div>";
+                        
+                        new mapboxgl.Marker(el)
+                            .setLngLat([p.lng, p.lat])
+                            .setPopup(new mapboxgl.Popup({ offset: 25, maxWidth: '320px', minWidth: '320px' })
+                                .setHTML(popupHtml))
+                            .addTo(map);
+                    });
+                });
+            } else {
+                // Leaflet Map
                 var map = L.map("lw-frontend-map").setView([16.0, 108.0], 5);
                 L.tileLayer("<?php echo esc_js($tile_url); ?>", { attribution: "&copy; OpenStreetMap" }).addTo(map);
 
-                var points = <?php echo $json_points; ?>;
-                var icons = <?php echo $json_icons; ?>;
-
-                if (!points || !Array.isArray(points) || points.length === 0) {
-                    return; // Không có điểm để hiển thị
-                }
-
-                if (!icons || !Array.isArray(icons) || icons.length === 0) {
-                    return; // Không có icon
-                }
-
                 points.forEach(function(p) {
-                    if (!p || !p.lat || !p.lng) {
-                        return; // Bỏ qua điểm không hợp lệ
-                    }
+                    if (!p || !p.lat || !p.lng) return;
+                    
                     var iconUrl = icons[0].url;
                     var foundIcon = icons.find(i => i.name === p.icon);
                     if(foundIcon) iconUrl = foundIcon.url;
+                    
                     var customIcon = L.icon({ 
                         iconUrl: iconUrl, 
                         iconSize: [25, 25], 

@@ -223,16 +223,55 @@
                     <div class="col-md-7 d-flex flex-column gap-4">
                         <div class="lw-admin-card" style="height: auto;">
                             <div class="lw-card-header">
-                                <h5><i class="fas fa-map me-2"></i>Giao diện Bản đồ (Tile)</h5>
+                                <h5><i class="fas fa-map me-2"></i>Loại Bản đồ</h5>
                             </div>
                             <div class="p-4">
-                                <select name="map_theme" id="map_theme_select" class="form-select lw-form-control fw-bold">
-                                    <?php foreach($map_themes as $key => $theme): ?>
-                                        <option value="<?php echo esc_attr($key); ?>" <?php selected($current_theme, $key); ?>>
-                                            <?php echo esc_html($theme['name']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small text-uppercase text-muted mb-2">Chọn loại bản đồ</label>
+                                    <div class="d-flex gap-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="map_type" id="mapTypeMapbox" value="mapbox" <?php checked($map_type, 'mapbox'); ?>>
+                                            <label class="form-check-label fw-bold" for="mapTypeMapbox">
+                                                Mapbox
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="map_type" id="mapTypeLeaflet" value="leaflet" <?php checked($map_type, 'leaflet'); ?>>
+                                            <label class="form-check-label fw-bold" for="mapTypeLeaflet">
+                                                Leaflet
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <?php if($map_type === 'mapbox'): ?>
+                                <div class="mb-3" id="mapbox-key-section">
+                                    <label class="form-label fw-bold small text-uppercase text-muted mb-2">Mapbox Public Key</label>
+                                    <input type="text" name="mapbox_key" class="form-control lw-form-control fw-bold" value="<?php echo esc_attr($mapbox_key); ?>" placeholder="pk.eyJ1...">
+                                    <div class="form-text small">Key công khai Mapbox để sử dụng bản đồ</div>
+                                </div>
+                                <div class="mb-0" id="mapbox-style-section">
+                                    <label class="form-label fw-bold small text-uppercase text-muted mb-2">Style Mapbox</label>
+                                    <select name="mapbox_style" id="mapbox_style_select" class="form-select lw-form-control fw-bold">
+                                        <?php foreach($mapbox_styles as $key => $style): ?>
+                                            <option value="<?php echo esc_attr($key); ?>" <?php selected($current_mapbox_style, $key); ?>>
+                                                <?php echo esc_html($style['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <?php else: ?>
+                                <div class="mb-0" id="leaflet-theme-section">
+                                    <label class="form-label fw-bold small text-uppercase text-muted mb-2">Theme Leaflet</label>
+                                    <select name="map_theme" id="map_theme_select" class="form-select lw-form-control fw-bold">
+                                        <?php foreach($map_themes as $key => $theme): ?>
+                                            <option value="<?php echo esc_attr($key); ?>" <?php selected($current_theme, $key); ?>>
+                                                <?php echo esc_html($theme['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -264,6 +303,37 @@
 
     </div>
 </div>
+
+<script>
+// Toggle Map Type Settings
+document.addEventListener('DOMContentLoaded', function() {
+    var mapTypeRadios = document.querySelectorAll('input[name="map_type"]');
+    var mapboxKeySection = document.getElementById('mapbox-key-section');
+    var mapboxStyleSection = document.getElementById('mapbox-style-section');
+    var leafletThemeSection = document.getElementById('leaflet-theme-section');
+    
+    function toggleMapSettings() {
+        var selectedType = document.querySelector('input[name="map_type"]:checked')?.value || 'mapbox';
+        
+        if (selectedType === 'mapbox') {
+            if (mapboxKeySection) mapboxKeySection.style.display = 'block';
+            if (mapboxStyleSection) mapboxStyleSection.style.display = 'block';
+            if (leafletThemeSection) leafletThemeSection.style.display = 'none';
+        } else {
+            if (mapboxKeySection) mapboxKeySection.style.display = 'none';
+            if (mapboxStyleSection) mapboxStyleSection.style.display = 'none';
+            if (leafletThemeSection) leafletThemeSection.style.display = 'block';
+        }
+    }
+    
+    mapTypeRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleMapSettings);
+    });
+    
+    // Initial toggle
+    toggleMapSettings();
+});
+</script>
 
 <div class="modal fade" id="postSelectorModal" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
