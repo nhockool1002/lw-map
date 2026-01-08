@@ -61,6 +61,7 @@ class LW_Map_Public {
         
         $map_type = get_option('lw_map_type', 'mapbox'); // Default là mapbox
         $mapbox_key = lw_get_mapbox_api_key();
+        $tile_url = ''; // Initialize để tránh undefined
         
         if ($map_type === 'mapbox') {
             $current_mapbox_style = get_option('lw_map_mapbox_style', 'streets');
@@ -70,6 +71,12 @@ class LW_Map_Public {
             $current_theme = get_option('lw_map_theme', 'osm');
             $themes = lw_get_map_themes();
             $tile_url = isset($themes[$current_theme]) ? $themes[$current_theme]['url'] : $themes['osm']['url'];
+        }
+        
+        // Fallback tile URL nếu không có
+        if (empty($tile_url)) {
+            $themes = lw_get_map_themes();
+            $tile_url = $themes['osm']['url'];
         }
         
         $current_gradient = get_option('lw_map_gradient', 'default');
@@ -239,112 +246,206 @@ class LW_Map_Public {
             }
         </style>
         <div class="lw-frontend-wrapper" style="position: relative; margin: 30px 0;">
-            <div id="lw-frontend-map" style="height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 1; border:1px solid #ddd;"></div>
+            <div id="lw-frontend-map" style="height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 1; border:1px solid #ddd; background: #f8fafc;"></div>
         </div>
         <script>
         document.addEventListener("DOMContentLoaded", function() {
-            if(!document.getElementById("lw-frontend-map")) return;
+            var mapContainer = document.getElementById("lw-frontend-map");
+            if(!mapContainer) return;
             
             var points = <?php echo $json_points; ?>;
             var icons = <?php echo $json_icons; ?>;
             var mapType = '<?php echo esc_js($map_type); ?>';
+            var mapboxKey = '<?php echo esc_js($mapbox_key); ?>';
+            var mapboxStyle = '<?php echo esc_js($current_style_id); ?>';
+            var leafletTileUrl = "<?php echo esc_js($tile_url); ?>";
 
             if (!points || !Array.isArray(points) || points.length === 0) {
+                mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8; font-size: 14px;">Chưa có địa điểm để hiển thị</div>';
                 return;
             }
 
             if (!icons || !Array.isArray(icons) || icons.length === 0) {
+                mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8; font-size: 14px;">Chưa có icon để hiển thị</div>';
                 return;
             }
 
-            if (mapType === 'mapbox' && typeof mapboxgl !== 'undefined') {
-                // Mapbox Map
-                mapboxgl.accessToken = '<?php echo esc_js($mapbox_key); ?>';
-                var map = new mapboxgl.Map({
-                    container: 'lw-frontend-map',
-                    style: 'mapbox://styles/<?php echo esc_js($current_style_id); ?>',
-                    center: [108.0, 16.0],
-                    zoom: 5
-                });
+            // Helper function to create popup HTML
+            function createPopupHtml(p) {
+                var popupHtml = "<div class='lw-card'>";
+                if(p.has_post) {
+                    popupHtml += "<div class='lw-card-thumb-wrap'><img src='" + p.thumb + "' class='lw-card-thumb'></div>";
+                }
+                popupHtml += "<div class='lw-card-body " + (!p.has_post ? 'pt-3' : '') + "'>";
+                popupHtml += "<div class='lw-card-header'>";
+                popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
+                if(p.date) {
+                    popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
+                }
+                popupHtml += "</div>";
+                if(p.excerpt) {
+                    popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
+                }
+                if(p.link) {
+                    popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>" + (p.has_post ? 'XEM CHI TIẾT' : 'XEM LIÊN KẾT') + "</a>";
+                }
+                popupHtml += "</div></div>";
+                return popupHtml;
+            }
 
-                map.on('load', function() {
+            // Helper function to get icon URL
+            function getIconUrl(iconName) {
+                var foundIcon = icons.find(i => i.name === iconName);
+                return foundIcon ? foundIcon.url : icons[0].url;
+            }
+
+            // Try Mapbox first if selected
+            if (mapType === 'mapbox' && typeof mapboxgl !== 'undefined' && mapboxKey) {
+                try {
+                    mapboxgl.accessToken = mapboxKey;
+                    var map = new mapboxgl.Map({
+                        container: 'lw-frontend-map',
+                        style: 'mapbox://styles/' + mapboxStyle,
+                        center: [108.0, 16.0],
+                        zoom: 5
+                    });
+
+                    var mapboxError = false;
+                    
+                    map.on('error', function(e) {
+                        console.error('Mapbox error:', e);
+                        mapboxError = true;
+                        // Fallback to Leaflet
+                        initLeafletMap();
+                    });
+
+                    map.on('load', function() {
+                        if (mapboxError) return;
+                        
+                        points.forEach(function(p) {
+                            if (!p || !p.lat || !p.lng) return;
+                            
+                            var el = document.createElement('div');
+                            el.className = 'mapbox-marker';
+                            el.style.backgroundImage = 'url(' + getIconUrl(p.icon) + ')';
+                            el.style.cursor = 'pointer';
+                            
+                            var popup = new mapboxgl.Popup({ 
+                                offset: { 'bottom': [0, -10] },
+                                maxWidth: '320px', 
+                                minWidth: '320px',
+                                anchor: 'bottom'
+                            }).setHTML(createPopupHtml(p));
+                            
+                            var marker = new mapboxgl.Marker(el)
+                                .setLngLat([p.lng, p.lat])
+                                .setPopup(popup)
+                                .addTo(map);
+                            
+                            // Click event để pan map và hiển thị popup ở giữa
+                            el.addEventListener('click', function() {
+                                var container = map.getContainer();
+                                var containerHeight = container.clientHeight;
+                                var offsetY = containerHeight / 2 - 150; // Offset để popup ở giữa
+                                
+                                map.easeTo({
+                                    center: [p.lng, p.lat],
+                                    offset: [0, offsetY],
+                                    duration: 500
+                                });
+                                
+                                setTimeout(function() {
+                                    marker.togglePopup();
+                                }, 100);
+                            });
+                        });
+                    });
+
+                    // Timeout fallback - if map doesn't load in 10 seconds, use Leaflet
+                    setTimeout(function() {
+                        if (!map.loaded()) {
+                            console.warn('Mapbox load timeout, falling back to Leaflet');
+                            map.remove();
+                            initLeafletMap();
+                        }
+                    }, 10000);
+                    
+                } catch(e) {
+                    console.error('Mapbox initialization error:', e);
+                    initLeafletMap();
+                }
+            } else {
+                // Use Leaflet
+                initLeafletMap();
+            }
+
+            function initLeafletMap() {
+                if (typeof L === 'undefined') {
+                    mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444; font-size: 14px;">Lỗi: Không thể tải thư viện bản đồ</div>';
+                    return;
+                }
+
+                try {
+                    var map = L.map("lw-frontend-map").setView([16.0, 108.0], 5);
+                    
+                    var tileLayer = L.tileLayer(leafletTileUrl || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                        attribution: "&copy; OpenStreetMap",
+                        errorTileUrl: 'https://via.placeholder.com/256x256/e2e8f0/94a3b8?text=Error'
+                    });
+                    
+                    tileLayer.addTo(map);
+                    
+                    tileLayer.on('tileerror', function() {
+                        console.warn('Tile load error, using fallback');
+                        map.removeLayer(tileLayer);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                            attribution: "&copy; OpenStreetMap" 
+                        }).addTo(map);
+                    });
+
                     points.forEach(function(p) {
                         if (!p || !p.lat || !p.lng) return;
                         
-                        var iconUrl = icons[0].url;
-                        var foundIcon = icons.find(i => i.name === p.icon);
-                        if(foundIcon) iconUrl = foundIcon.url;
+                        var customIcon = L.icon({ 
+                            iconUrl: getIconUrl(p.icon), 
+                            iconSize: [25, 25], 
+                            iconAnchor: [12.5, 25], 
+                            popupAnchor: [0, -25] 
+                        });
+                        var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(map);
+                        marker.bindPopup(createPopupHtml(p), { 
+                            maxWidth: 320, 
+                            minWidth: 320, 
+                            className: 'lw-map-popup',
+                            autoPan: true,
+                            autoPanPadding: [50, 50]
+                        });
                         
-                        var el = document.createElement('div');
-                        el.className = 'mapbox-marker';
-                        el.style.backgroundImage = 'url(' + iconUrl + ')';
-                        
-                        var popupHtml = "<div class='lw-card'>";
-                        if(p.has_post) {
-                            popupHtml += "<div class='lw-card-thumb-wrap'><img src='" + p.thumb + "' class='lw-card-thumb'></div>";
-                        }
-                        popupHtml += "<div class='lw-card-body " + (!p.has_post ? 'pt-3' : '') + "'>";
-                        popupHtml += "<div class='lw-card-header'>";
-                        popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
-                        if(p.date) {
-                            popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
-                        }
-                        popupHtml += "</div>";
-                        if(p.excerpt) {
-                            popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
-                        }
-                        if(p.link) {
-                            popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>" + (p.has_post ? 'XEM CHI TIẾT' : 'XEM LIÊN KẾT') + "</a>";
-                        }
-                        popupHtml += "</div></div>";
-                        
-                        new mapboxgl.Marker(el)
-                            .setLngLat([p.lng, p.lat])
-                            .setPopup(new mapboxgl.Popup({ offset: 25, maxWidth: '320px', minWidth: '320px' })
-                                .setHTML(popupHtml))
-                            .addTo(map);
+                        // Click event để pan map và hiển thị popup ở giữa
+                        marker.on('click', function() {
+                            var container = map.getContainer();
+                            var containerHeight = container.clientHeight;
+                            var containerWidth = container.clientWidth;
+                            
+                            // Tính toán vị trí để popup ở giữa màn hình
+                            var newLatLng = map.containerPointToLatLng([
+                                containerWidth / 2,
+                                containerHeight / 2 - 150
+                            ]);
+                            
+                            // Pan map với animation
+                            map.panTo(newLatLng, { animate: true, duration: 0.5 });
+                            
+                            // Mở popup sau khi pan xong
+                            setTimeout(function() {
+                                marker.openPopup();
+                            }, 550);
+                        });
                     });
-                });
-            } else {
-                // Leaflet Map
-                var map = L.map("lw-frontend-map").setView([16.0, 108.0], 5);
-                L.tileLayer("<?php echo esc_js($tile_url); ?>", { attribution: "&copy; OpenStreetMap" }).addTo(map);
-
-                points.forEach(function(p) {
-                    if (!p || !p.lat || !p.lng) return;
-                    
-                    var iconUrl = icons[0].url;
-                    var foundIcon = icons.find(i => i.name === p.icon);
-                    if(foundIcon) iconUrl = foundIcon.url;
-                    
-                    var customIcon = L.icon({ 
-                        iconUrl: iconUrl, 
-                        iconSize: [25, 25], 
-                        iconAnchor: [12.5, 25], 
-                        popupAnchor: [0, -25] 
-                    });
-                    var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(map);
-                    
-                    var popupHtml = "<div class='lw-card'>";
-                    if(p.has_post) {
-                        popupHtml += "<div class='lw-card-thumb-wrap'><img src='" + p.thumb + "' class='lw-card-thumb'></div>";
-                    }
-                    popupHtml += "<div class='lw-card-body " + (!p.has_post ? 'pt-3' : '') + "'>";
-                    popupHtml += "<div class='lw-card-header'>";
-                    popupHtml += "<h3 class='lw-card-title'>" + p.title + "</h3>";
-                    if(p.date) {
-                        popupHtml += "<div class='lw-card-date'><i class='far fa-calendar-alt'></i> " + p.date + "</div>";
-                    }
-                    popupHtml += "</div>";
-                    if(p.excerpt) {
-                        popupHtml += "<div class='lw-card-excerpt'>" + p.excerpt + "</div>";
-                    }
-                    if(p.link) {
-                        popupHtml += "<a href='" + p.link + "' target='_blank' class='lw-card-btn'>" + (p.has_post ? 'XEM CHI TIẾT' : 'XEM LIÊN KẾT') + "</a>";
-                    }
-                    popupHtml += "</div></div>";
-                    marker.bindPopup(popupHtml, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
-                });
+                } catch(e) {
+                    console.error('Leaflet initialization error:', e);
+                    mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444; font-size: 14px;">Lỗi khởi tạo bản đồ: ' + e.message + '</div>';
+                }
             }
         });
         </script>

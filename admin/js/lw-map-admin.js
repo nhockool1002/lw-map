@@ -117,11 +117,42 @@ document.addEventListener('DOMContentLoaded', function() {
             el.style.backgroundRepeat = 'no-repeat';
             el.style.cursor = 'pointer';
             
+            var popup = new mapboxgl.Popup({ 
+                offset: { 'bottom': [0, -10] },
+                maxWidth: '320px', 
+                minWidth: '320px',
+                anchor: 'bottom'
+            }).setHTML(popupHtml);
+            
             var marker = new mapboxgl.Marker(el)
                 .setLngLat([point.lng, point.lat])
-                .setPopup(new mapboxgl.Popup({ offset: 25, maxWidth: '320px', minWidth: '320px' })
-                    .setHTML(popupHtml))
+                .setPopup(popup)
                 .addTo(mapObj.instance);
+            
+            // Click event để pan map và hiển thị popup ở giữa
+            el.addEventListener('click', function() {
+                var map = mapObj.instance;
+                var container = map.getContainer();
+                var containerHeight = container.clientHeight;
+                var containerWidth = container.clientWidth;
+                
+                // Tính toán offset để popup ở giữa màn hình
+                // Popup height khoảng 200-300px, cần offset lên trên
+                var offsetY = containerHeight / 2 - 150; // 150px là khoảng cách từ center đến popup
+                
+                // Pan map để marker ở vị trí center với offset
+                map.easeTo({
+                    center: [point.lng, point.lat],
+                    offset: [0, offsetY],
+                    duration: 500
+                });
+                
+                // Mở popup sau khi pan
+                setTimeout(function() {
+                    marker.togglePopup();
+                }, 100);
+            });
+            
             return marker;
         } else {
             // Leaflet marker
@@ -132,7 +163,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 popupAnchor: [0, -25] 
             });
             var marker = L.marker([point.lat, point.lng], {icon: customIcon}).addTo(mapObj.instance);
-            marker.bindPopup(popupHtml, { maxWidth: 320, minWidth: 320, className: 'lw-map-popup' });
+            marker.bindPopup(popupHtml, { 
+                maxWidth: 320, 
+                minWidth: 320, 
+                className: 'lw-map-popup',
+                autoPan: true,
+                autoPanPadding: [50, 50]
+            });
+            
+            // Click event để pan map và hiển thị popup ở giữa
+            marker.on('click', function() {
+                var map = mapObj.instance;
+                var container = map.getContainer();
+                var containerHeight = container.clientHeight;
+                var containerWidth = container.clientWidth;
+                
+                // Tính toán vị trí để popup ở giữa màn hình
+                // Marker cần ở vị trí trên center một chút (150px) để popup hiển thị ở giữa
+                var newLatLng = map.containerPointToLatLng([
+                    containerWidth / 2,
+                    containerHeight / 2 - 150
+                ]);
+                
+                // Pan map với animation
+                map.panTo(newLatLng, { animate: true, duration: 0.5 });
+                
+                // Mở popup sau khi pan xong
+                setTimeout(function() {
+                    marker.openPopup();
+                }, 550);
+            });
+            
             return marker;
         }
     }

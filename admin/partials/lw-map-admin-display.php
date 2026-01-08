@@ -101,7 +101,7 @@
                                         <?php foreach($default_icons as $def): ?>
                                         <tr>
                                             <td class="fw-bold text-muted"><?php echo esc_html($def['name']); ?></td>
-                                            <td class="text-end"><div class="lw-icon-preview-box d-inline-flex"><img src="<?php echo esc_url($def['url']); ?>" class="lw-icon-preview"></div></td>
+                                            <td class="text-end"><div class="lw-icon-preview-box d-inline-flex"><img src="<?php echo esc_url(lw_force_https_url($def['url'])); ?>" class="lw-icon-preview"></div></td>
                                         </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -132,11 +132,11 @@
                                             <td><input type="text" name="icon_name[]" class="form-control lw-form-control" value="<?php echo esc_attr($ic['name']); ?>" placeholder="Nhập tên..." required></td>
                                             <td>
                                                 <div class="input-group">
-                                                    <input type="text" name="icon_url[]" class="form-control lw-form-control img-url-input" value="<?php echo esc_url($ic['url']); ?>" placeholder="https://..." required>
+                                                    <input type="text" name="icon_url[]" class="form-control lw-form-control img-url-input" value="<?php echo esc_url(lw_force_https_url($ic['url'])); ?>" placeholder="https://..." required>
                                                     <button type="button" class="btn btn-upload btn-upload-img"><i class="fas fa-cloud-upload-alt"></i></button>
                                                 </div>
                                             </td>
-                                            <td class="text-center"><div class="lw-icon-preview-box mx-auto"><img src="<?php echo esc_url($ic['url']); ?>" class="lw-icon-preview"></div></td>
+                                            <td class="text-center"><div class="lw-icon-preview-box mx-auto"><img src="<?php echo esc_url(lw_force_https_url($ic['url'])); ?>" class="lw-icon-preview"></div></td>
                                             <td class="text-center">
                                                 <button type="button" class="btn-icon-delete remove-row" title="Xóa">
                                                     <i class="far fa-trash-alt"></i>

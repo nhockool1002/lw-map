@@ -108,9 +108,11 @@ class LW_Map_Admin {
             if(isset($_POST['icon_name'])) {
                 for($i = 0; $i < count($_POST['icon_name']); $i++){
                     if(!empty($_POST['icon_url'][$i])){
+                        $icon_url = esc_url_raw($_POST['icon_url'][$i]);
+                        $icon_url = lw_force_https_url($icon_url); // Force HTTPS
                         $icons[] = [
                             'name' => sanitize_text_field($_POST['icon_name'][$i]),
-                            'url'  => esc_url_raw($_POST['icon_url'][$i])
+                            'url'  => $icon_url
                         ];
                     }
                 }
@@ -125,11 +127,13 @@ class LW_Map_Admin {
             $points = [];
             if(isset($_POST['p_lat'])) {
                 for($i = 0; $i < count($_POST['p_lat']); $i++){
+                    $point_link = esc_url_raw($_POST['p_link'][$i]);
+                    $point_link = lw_force_https_url($point_link); // Force HTTPS
                     $points[] = [
                         'lat'   => sanitize_text_field($_POST['p_lat'][$i]),
                         'lng'   => sanitize_text_field($_POST['p_lng'][$i]),
                         'title' => sanitize_text_field($_POST['p_title'][$i]),
-                        'link'  => esc_url_raw($_POST['p_link'][$i]),
+                        'link'  => $point_link,
                         'icon'  => sanitize_text_field($_POST['p_icon'][$i])
                     ];
                 }
@@ -186,10 +190,15 @@ class LW_Map_Admin {
        $post_type = get_post_type($postid);
        if ($post_type !== 'post' && $post_type !== 'page') return;
        $permalink = get_permalink($postid);
+       $permalink_https = lw_force_https_url($permalink);
        $points = get_option('lw_map_points', []);
        $original_count = count($points);
-       $points = array_filter($points, function($p) use ($permalink) {
-           return rtrim($p['link'], '/') !== rtrim($permalink, '/');
+       $points = array_filter($points, function($p) use ($permalink, $permalink_https) {
+           $link = rtrim($p['link'], '/');
+           $permalink_clean = rtrim($permalink, '/');
+           $permalink_https_clean = rtrim($permalink_https, '/');
+           // So sánh cả HTTP và HTTPS để đảm bảo xóa đúng
+           return $link !== $permalink_clean && $link !== $permalink_https_clean;
        });
        if (count($points) < $original_count) update_option('lw_map_points', array_values($points));
     }

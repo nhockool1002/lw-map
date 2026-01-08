@@ -11,6 +11,14 @@ function lw_get_all_icons() {
     ];
     $customs = get_option('lw_map_icons', []);
     if (!is_array($customs)) $customs = [];
+    
+    // Force HTTPS cho tất cả icon URLs
+    foreach($customs as &$icon) {
+        if(isset($icon['url'])) {
+            $icon['url'] = lw_force_https_url($icon['url']);
+        }
+    }
+    
     return array_merge($defaults, $customs);
 }
 
@@ -164,6 +172,31 @@ function lw_can_access_settings() {
     return in_array($current_user_id, $allowed_users);
 }
 
+/**
+ * Force URL to use HTTPS
+ * Fixes Mixed Content warnings
+ */
+function lw_force_https_url($url) {
+    if (empty($url)) return $url;
+    
+    // Nếu URL là relative, không cần xử lý
+    if (strpos($url, '//') === 0 || strpos($url, '/') === 0) {
+        return $url;
+    }
+    
+    // Nếu URL bắt đầu bằng http://, thay bằng https://
+    if (strpos($url, 'http://') === 0) {
+        $url = str_replace('http://', 'https://', $url);
+    }
+    
+    // Sử dụng WordPress function để đảm bảo URL đúng scheme
+    if (function_exists('set_url_scheme')) {
+        $url = set_url_scheme($url, 'https');
+    }
+    
+    return $url;
+}
+
 function lw_prepare_points_data($points) {
     if (empty($points)) return [];
     
@@ -173,7 +206,9 @@ function lw_prepare_points_data($points) {
         $p['date'] = ''; // Đảm bảo date luôn được khởi tạo
         $p['excerpt'] = ''; // Đảm bảo excerpt luôn được khởi tạo
         
+        // Force HTTPS cho link
         if(!empty($p['link'])) {
+            $p['link'] = lw_force_https_url($p['link']);
             $post_id = url_to_postid($p['link']);
             if($post_id) {
                 $p['has_post'] = true;
@@ -194,9 +229,13 @@ function lw_prepare_points_data($points) {
                     }
                     $p['excerpt'] = wp_trim_words($excerpt, 20, '...');
                     
-                    // Lấy thumbnail
+                    // Lấy thumbnail và force HTTPS
                     $thumb = get_the_post_thumbnail_url($post_id, 'medium'); 
-                    if(!$thumb) $thumb = 'https://via.placeholder.com/300x150/e0e0e0/999999?text=No+Image';
+                    if(!$thumb) {
+                        $thumb = 'https://via.placeholder.com/300x150/e0e0e0/999999?text=No+Image';
+                    } else {
+                        $thumb = lw_force_https_url($thumb);
+                    }
                     $p['thumb'] = $thumb;
                 }
             }
@@ -210,7 +249,8 @@ function lw_get_post_list_for_js() {
     $posts = get_posts($args);
     $data = [];
     foreach ($posts as $p) {
-        $data[] = ['id' => $p->ID, 'title' => $p->post_title, 'link' => get_permalink($p->ID)];
+        $permalink = get_permalink($p->ID);
+        $data[] = ['id' => $p->ID, 'title' => $p->post_title, 'link' => lw_force_https_url($permalink)];
     }
     return $data;
 }
