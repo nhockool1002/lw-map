@@ -343,7 +343,9 @@ class LW_Map_Public {
                                 .addTo(map);
                             
                             // Click event để pan map và hiển thị popup ở giữa
-                            el.addEventListener('click', function() {
+                            el.addEventListener('click', function(e) {
+                                e.stopPropagation(); // Ngăn event bubbling
+                                
                                 var container = map.getContainer();
                                 var containerHeight = container.clientHeight;
                                 var offsetY = containerHeight / 2 - 150; // Offset để popup ở giữa
@@ -355,7 +357,9 @@ class LW_Map_Public {
                                 });
                                 
                                 setTimeout(function() {
-                                    marker.togglePopup();
+                                    if (!marker.getPopup().isOpen()) {
+                                        marker.openPopup();
+                                    }
                                 }, 100);
                             });
                         });
@@ -422,7 +426,9 @@ class LW_Map_Public {
                         });
                         
                         // Click event để pan map và hiển thị popup ở giữa
-                        marker.on('click', function() {
+                        marker.on('click', function(e) {
+                            e.originalEvent.stopPropagation(); // Ngăn event bubbling
+                            
                             var container = map.getContainer();
                             var containerHeight = container.clientHeight;
                             var containerWidth = container.clientWidth;
@@ -433,12 +439,21 @@ class LW_Map_Public {
                                 containerHeight / 2 - 150
                             ]);
                             
+                            // Tạm thời tắt autoPan để tránh conflict
+                            var popup = marker.getPopup();
+                            var autoPanWasEnabled = popup.options.autoPan;
+                            popup.options.autoPan = false;
+                            
                             // Pan map với animation
                             map.panTo(newLatLng, { animate: true, duration: 0.5 });
                             
                             // Mở popup sau khi pan xong
                             setTimeout(function() {
                                 marker.openPopup();
+                                // Khôi phục autoPan sau khi mở popup
+                                if (autoPanWasEnabled) {
+                                    popup.options.autoPan = true;
+                                }
                             }, 550);
                         });
                     });

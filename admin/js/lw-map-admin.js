@@ -130,7 +130,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .addTo(mapObj.instance);
             
             // Click event để pan map và hiển thị popup ở giữa
-            el.addEventListener('click', function() {
+            el.addEventListener('click', function(e) {
+                e.stopPropagation(); // Ngăn event bubbling
+                
                 var map = mapObj.instance;
                 var container = map.getContainer();
                 var containerHeight = container.clientHeight;
@@ -147,9 +149,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     duration: 500
                 });
                 
-                // Mở popup sau khi pan
+                // Mở popup sau khi pan (dùng openPopup thay vì togglePopup)
                 setTimeout(function() {
-                    marker.togglePopup();
+                    if (!marker.getPopup().isOpen()) {
+                        marker.openPopup();
+                    }
                 }, 100);
             });
             
@@ -172,7 +176,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             // Click event để pan map và hiển thị popup ở giữa
-            marker.on('click', function() {
+            marker.on('click', function(e) {
+                e.originalEvent.stopPropagation(); // Ngăn event bubbling
+                
                 var map = mapObj.instance;
                 var container = map.getContainer();
                 var containerHeight = container.clientHeight;
@@ -185,12 +191,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     containerHeight / 2 - 150
                 ]);
                 
+                // Tạm thời tắt autoPan để tránh conflict
+                var popup = marker.getPopup();
+                var autoPanWasEnabled = popup.options.autoPan;
+                popup.options.autoPan = false;
+                
                 // Pan map với animation
                 map.panTo(newLatLng, { animate: true, duration: 0.5 });
                 
                 // Mở popup sau khi pan xong
                 setTimeout(function() {
                     marker.openPopup();
+                    // Khôi phục autoPan sau khi mở popup
+                    if (autoPanWasEnabled) {
+                        popup.options.autoPan = true;
+                    }
                 }, 550);
             });
             
