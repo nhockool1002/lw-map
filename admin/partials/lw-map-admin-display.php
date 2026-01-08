@@ -226,31 +226,31 @@
                                 <h5><i class="fas fa-map me-2"></i>Loại Bản đồ</h5>
                             </div>
                             <div class="p-4">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold small text-uppercase text-muted mb-2">Chọn loại bản đồ</label>
-                                    <div class="d-flex gap-4">
-                                        <div class="form-check">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold small text-uppercase text-muted mb-3 d-block">Chọn loại bản đồ</label>
+                                    <div class="d-flex gap-3 align-items-center">
+                                        <div class="form-check lw-map-type-radio">
                                             <input class="form-check-input" type="radio" name="map_type" id="mapTypeMapbox" value="mapbox" <?php checked($map_type, 'mapbox'); ?>>
                                             <label class="form-check-label fw-bold" for="mapTypeMapbox">
-                                                Mapbox
+                                                <i class="fas fa-map-marked-alt me-2"></i>Mapbox
                                             </label>
                                         </div>
-                                        <div class="form-check">
+                                        <div class="form-check lw-map-type-radio">
                                             <input class="form-check-input" type="radio" name="map_type" id="mapTypeLeaflet" value="leaflet" <?php checked($map_type, 'leaflet'); ?>>
                                             <label class="form-check-label fw-bold" for="mapTypeLeaflet">
-                                                Leaflet
+                                                <i class="fas fa-layer-group me-2"></i>Leaflet
                                             </label>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <?php if($map_type === 'mapbox'): ?>
-                                <div class="mb-3" id="mapbox-key-section">
+                                <div class="mb-3" id="mapbox-key-section" style="display: <?php echo $map_type === 'mapbox' ? 'block' : 'none'; ?>;">
                                     <label class="form-label fw-bold small text-uppercase text-muted mb-2">Mapbox Public Key</label>
                                     <input type="text" name="mapbox_key" class="form-control lw-form-control fw-bold" value="<?php echo esc_attr($mapbox_key); ?>" placeholder="pk.eyJ1...">
                                     <div class="form-text small">Key công khai Mapbox để sử dụng bản đồ</div>
                                 </div>
-                                <div class="mb-0" id="mapbox-style-section">
+                                
+                                <div class="mb-0" id="mapbox-style-section" style="display: <?php echo $map_type === 'mapbox' ? 'block' : 'none'; ?>;">
                                     <label class="form-label fw-bold small text-uppercase text-muted mb-2">Style Mapbox</label>
                                     <select name="mapbox_style" id="mapbox_style_select" class="form-select lw-form-control fw-bold">
                                         <?php foreach($mapbox_styles as $key => $style): ?>
@@ -260,8 +260,8 @@
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <?php else: ?>
-                                <div class="mb-0" id="leaflet-theme-section">
+                                
+                                <div class="mb-0" id="leaflet-theme-section" style="display: <?php echo $map_type === 'leaflet' ? 'block' : 'none'; ?>;">
                                     <label class="form-label fw-bold small text-uppercase text-muted mb-2">Theme Leaflet</label>
                                     <select name="map_theme" id="map_theme_select" class="form-select lw-form-control fw-bold">
                                         <?php foreach($map_themes as $key => $theme): ?>
@@ -271,7 +271,6 @@
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -316,13 +315,24 @@ document.addEventListener('DOMContentLoaded', function() {
         var selectedType = document.querySelector('input[name="map_type"]:checked')?.value || 'mapbox';
         
         if (selectedType === 'mapbox') {
-            if (mapboxKeySection) mapboxKeySection.style.display = 'block';
-            if (mapboxStyleSection) mapboxStyleSection.style.display = 'block';
-            if (leafletThemeSection) leafletThemeSection.style.display = 'none';
+            if (mapboxKeySection) {
+                mapboxKeySection.style.display = 'block';
+                mapboxKeySection.style.marginBottom = '1rem';
+            }
+            if (mapboxStyleSection) {
+                mapboxStyleSection.style.display = 'block';
+                mapboxStyleSection.style.marginBottom = '0';
+            }
+            if (leafletThemeSection) {
+                leafletThemeSection.style.display = 'none';
+            }
         } else {
             if (mapboxKeySection) mapboxKeySection.style.display = 'none';
             if (mapboxStyleSection) mapboxStyleSection.style.display = 'none';
-            if (leafletThemeSection) leafletThemeSection.style.display = 'block';
+            if (leafletThemeSection) {
+                leafletThemeSection.style.display = 'block';
+                leafletThemeSection.style.marginBottom = '0';
+            }
         }
     }
     

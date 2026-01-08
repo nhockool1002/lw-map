@@ -196,6 +196,47 @@ class LW_Map_Public {
                 background-repeat: no-repeat !important;
                 cursor: pointer;
             }
+            
+            /* Mapbox Popup Styling */
+            .mapboxgl-popup {
+                max-width: 320px !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            
+            .mapboxgl-popup-content {
+                padding: 0 !important;
+                border-radius: 12px !important;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+                overflow: hidden;
+            }
+            
+            .mapboxgl-popup-tip {
+                border-top-color: #fff !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            .mapboxgl-popup-close-button {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 18px !important;
+                color: #64748b !important;
+                background: rgba(255, 255, 255, 0.9) !important;
+                border-radius: 50% !important;
+                right: 8px !important;
+                top: 8px !important;
+                transition: all 0.2s ease !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            
+            .mapboxgl-popup-close-button:hover {
+                background: #fff !important;
+                color: #ef4444 !important;
+                border-color: #ef4444 !important;
+                transform: scale(1.1);
+            }
         </style>
         <div class="lw-frontend-wrapper" style="position: relative; margin: 30px 0;">
             <div id="lw-frontend-map" style="height: 600px; width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); z-index: 1; border:1px solid #ddd;"></div>
