@@ -357,8 +357,9 @@ class LW_Map_Public {
                                 });
                                 
                                 setTimeout(function() {
-                                    if (!marker.getPopup().isOpen()) {
-                                        marker.openPopup();
+                                    var popup = marker.getPopup();
+                                    if (popup && !popup.isOpen()) {
+                                        marker.togglePopup();
                                     }
                                 }, 100);
                             });

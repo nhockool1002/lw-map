@@ -149,10 +149,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     duration: 500
                 });
                 
-                // Mở popup sau khi pan (dùng openPopup thay vì togglePopup)
+                // Mở popup sau khi pan (Mapbox dùng togglePopup)
                 setTimeout(function() {
-                    if (!marker.getPopup().isOpen()) {
-                        marker.openPopup();
+                    var popup = marker.getPopup();
+                    if (popup && !popup.isOpen()) {
+                        marker.togglePopup();
                     }
                 }, 100);
             });
@@ -252,13 +253,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Thêm class active cho item này
                     this.classList.add('active');
                     
-                    // Bay đến địa điểm
+                    // Bay đến địa điểm và hiển thị popup ở giữa
                     if (dashboardMap.type === 'mapbox') {
-                        dashboardMap.instance.flyTo({ center: [p.lng, p.lat], zoom: 15, duration: 1200 });
-                        if (marker.getPopup) marker.getPopup().addTo(dashboardMap.instance);
+                        var map = dashboardMap.instance;
+                        var container = map.getContainer();
+                        var containerHeight = container.clientHeight;
+                        var offsetY = containerHeight / 2 - 150;
+                        
+                        map.flyTo({ 
+                            center: [p.lng, p.lat], 
+                            zoom: 15, 
+                            duration: 1200,
+                            offset: [0, offsetY]
+                        });
+                        
+                        setTimeout(function() {
+                            if (marker && marker.getPopup) {
+                                var popup = marker.getPopup();
+                                if (popup && !popup.isOpen()) {
+                                    marker.togglePopup();
+                                }
+                            }
+                        }, 1200);
                     } else {
-                        dashboardMap.instance.flyTo([p.lat, p.lng], 15, { duration: 1.2 });
-                        marker.openPopup();
+                        var map = dashboardMap.instance;
+                        var container = map.getContainer();
+                        var containerHeight = container.clientHeight;
+                        var containerWidth = container.clientWidth;
+                        
+                        map.flyTo([p.lat, p.lng], 15, { duration: 1.2 });
+                        
+                        setTimeout(function() {
+                            var newLatLng = map.containerPointToLatLng([
+                                containerWidth / 2,
+                                containerHeight / 2 - 150
+                            ]);
+                            map.panTo(newLatLng, { animate: true, duration: 0.3 });
+                            
+                            setTimeout(function() {
+                                marker.openPopup();
+                            }, 350);
+                        }, 1200);
                     }
                 };
 
