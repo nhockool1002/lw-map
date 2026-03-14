@@ -168,18 +168,57 @@ a { text-decoration: none; }
 
 /* Box bao quanh icon trong phần chọn Dropdown (Point List) */
 .icon-preview-box { 
-    width: 35px; 
+    width: 40px; 
+    min-width: 40px;
+    flex-shrink: 0;
+    height: 100%;
+    min-height: 36px;
     display: flex; 
     align-items: center; 
     justify-content: center; 
     background: #f8fafc; 
-    border-right: 1px solid #e2e8f0; 
+    border-right: 1px solid #e2e8f0;
+    border-radius: 5px 0 0 5px;
 }
 
 .lw-icon-preview-small { 
-    width: 25px !important;  
-    height: 25px !important; 
+    width: 22px !important;  
+    height: 22px !important;  
     object-fit: contain;
+    display: block;
+}
+
+/* Selectbox Icon: căn chỉnh select bên cạnh icon preview */
+.icon-select-improved {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    height: 38px;
+    overflow: hidden;
+}
+.icon-select-improved .icon-preview-box {
+    border-radius: 5px 0 0 5px;
+}
+.icon-select-improved select.icon-selector,
+.icon-select-improved .form-select {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: none !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    padding: 0 28px 0 10px !important;
+    font-size: 0.9rem !important;
+    background: #fff !important;
+    appearance: auto;
+    cursor: pointer;
+}
+.icon-select-improved select.icon-selector:focus,
+.icon-select-improved .form-select:focus {
+    outline: none;
+    box-shadow: none;
 }
 
 /* Other UI */
@@ -200,22 +239,22 @@ a { text-decoration: none; }
 .point-body { padding: 20px; display: none; background: #fff; border-top: 1px solid #f1f5f9; }
 .point-item.open .point-body { display: block; animation: slideDown 0.2s ease-out; }
 .lw-label { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; }
-.icon-select-improved { display: flex; align-items: stretch; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; height: 38px; overflow: hidden; }
 .point-footer-action { margin-top: 20px; padding-top: 15px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
 .btn-delete-custom { color: #ef4444; background: #fef2f2; border: 1px solid #fee2e2; padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; }
 .btn-delete-custom:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Popup marker (đồng bộ với public: gọn, 260px) */
 .lw-card { 
     border: none; 
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.1);
     background: #fff;
 }
 .lw-card-thumb-wrap { 
-    height: 180px; 
+    height: 100px; 
     border-radius: 0; 
     overflow: hidden; 
     position: relative;
@@ -231,67 +270,67 @@ a { text-decoration: none; }
     transform: scale(1.05);
 }
 .lw-card-body { 
-    padding: 20px; 
+    padding: 12px; 
 }
 .lw-card-header {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
 }
 .lw-card-title { 
-    font-size: 18px; 
+    font-size: 14px; 
     font-weight: 700; 
-    margin: 0 0 8px 0; 
+    margin: 0 0 4px 0; 
     color: #1e293b;
-    line-height: 1.4;
+    line-height: 1.3;
 }
 .lw-card-date {
-    font-size: 12px;
+    font-size: 11px;
     color: #94a3b8;
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 12px;
+    gap: 4px;
+    margin-bottom: 6px;
 }
 .lw-card-date i {
-    font-size: 11px;
+    font-size: 10px;
 }
 .lw-card-excerpt {
-    font-size: 14px;
+    font-size: 12px;
     color: #64748b;
-    margin-bottom: 16px;
-    line-height: 1.6;
+    margin-bottom: 10px;
+    line-height: 1.45;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 .lw-card-btn { 
     background: var(--lw-grad) !important; 
-    border-radius: 8px; 
+    border-radius: 6px; 
     font-weight: 600; 
     margin-top: 0; 
-    padding: 12px 20px; 
+    padding: 8px 14px; 
     transition: all 0.3s ease; 
     color: #fff !important; 
     text-decoration: none !important; 
     display: block; 
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 .lw-card-btn:hover { 
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
     opacity: 0.95;
 }
 /* Leaflet Popup Styling */
 .leaflet-popup-content-wrapper {
-    border-radius: 12px !important;
+    border-radius: 8px !important;
     padding: 0 !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
 .leaflet-popup-content {
     margin: 0 !important;
-    width: 320px !important;
+    width: 260px !important;
 }
 .leaflet-popup-tip {
     background: #fff !important;
@@ -389,10 +428,10 @@ a { text-decoration: none; }
     position: relative !important;
     display: block !important;
 }
-
 .leaflet-control-geocoder-form input {
     height: 44px !important;
-    padding: 0 50px 0 16px !important;
+    line-height: 44px !important;
+    padding: 0 52px 0 18px !important;
     border: 2px solid #e2e8f0 !important;
     border-radius: 12px !important;
     font-size: 14px !important;
@@ -404,11 +443,14 @@ a { text-decoration: none; }
     box-shadow: none !important;
     outline: none !important;
     margin: 0 !important;
+    box-sizing: border-box !important;
+    vertical-align: middle !important;
 }
 
 .leaflet-control-geocoder-form input::placeholder {
     color: #94a3b8 !important;
     font-weight: 400 !important;
+    opacity: 1 !important;
 }
 
 .leaflet-control-geocoder-form input:focus {
@@ -502,6 +544,18 @@ a { text-decoration: none; }
     font-weight: 500 !important;
 }
 
+/* --- MAPBOX GEOCODER: placeholder không bị đè --- */
+.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-input {
+    min-height: 44px !important;
+    line-height: 44px !important;
+    padding: 0 40px 0 16px !important;
+    box-sizing: border-box !important;
+}
+.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-input::placeholder {
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+}
+
 /* --- MAP MARKER ICON SIZE FIX --- */
 .leaflet-marker-icon {
     width: 25px !important;
@@ -520,14 +574,14 @@ a { text-decoration: none; }
 
 /* --- MAPBOX POPUP STYLING --- */
 .mapboxgl-popup {
-    max-width: 320px !important;
+    max-width: 260px !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .mapboxgl-popup-content {
     padding: 0 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
     overflow: hidden;
 }
 

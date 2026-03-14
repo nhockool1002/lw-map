@@ -119,8 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             var popup = new mapboxgl.Popup({ 
                 offset: { 'bottom': [0, -10] },
-                maxWidth: '320px', 
-                minWidth: '320px',
+                maxWidth: '260px', 
+                minWidth: '260px',
                 anchor: 'bottom'
             }).setHTML(popupHtml);
             
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Tính toán offset để popup ở giữa màn hình
                 // Popup height khoảng 200-300px, cần offset lên trên
-                var offsetY = containerHeight / 2 - 150; // 150px là khoảng cách từ center đến popup
+                var offsetY = containerHeight / 2 - 110; // popup gọn ~220px cao
                 
                 // Pan map để marker ở vị trí center với offset
                 map.easeTo({
@@ -168,9 +168,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 popupAnchor: [0, -25] 
             });
             var marker = L.marker([point.lat, point.lng], {icon: customIcon}).addTo(mapObj.instance);
-            marker.bindPopup(popupHtml, { 
-                maxWidth: 320, 
-                minWidth: 320, 
+            marker.bindPopup(popupHtml, {
+                maxWidth: 260,
+                minWidth: 260,
                 className: 'lw-map-popup',
                 autoPan: true,
                 autoPanPadding: [50, 50]
@@ -186,10 +186,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 var containerWidth = container.clientWidth;
                 
                 // Tính toán vị trí để popup ở giữa màn hình
-                // Marker cần ở vị trí trên center một chút (150px) để popup hiển thị ở giữa
+                // Marker cần ở vị trí trên center một chút để popup gọn hiển thị giữa
                 var newLatLng = map.containerPointToLatLng([
                     containerWidth / 2,
-                    containerHeight / 2 - 150
+                    containerHeight / 2 - 110
                 ]);
                 
                 // Tạm thời tắt autoPan để tránh conflict
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         var map = dashboardMap.instance;
                         var container = map.getContainer();
                         var containerHeight = container.clientHeight;
-                        var offsetY = containerHeight / 2 - 150;
+                        var offsetY = containerHeight / 2 - 110;
                         
                         map.flyTo({ 
                             center: [p.lng, p.lat], 
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         setTimeout(function() {
                             var newLatLng = map.containerPointToLatLng([
                                 containerWidth / 2,
-                                containerHeight / 2 - 150
+                                containerHeight / 2 - 110
                             ]);
                             map.panTo(newLatLng, { animate: true, duration: 0.3 });
                             
@@ -317,7 +317,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 var geocoder = new MapboxGeocoder({
                     accessToken: mapboxKey || '',
                     mapboxgl: mapboxgl,
-                    marker: false
+                    marker: false,
+                    placeholder: 'Tìm địa điểm...'
                 });
                 managerMap.instance.addControl(geocoder);
                 geocoder.on('result', function(e) {

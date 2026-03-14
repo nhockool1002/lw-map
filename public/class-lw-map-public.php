@@ -94,13 +94,13 @@ class LW_Map_Public {
             .lw-card { 
                 border: none; 
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                border-radius: 12px;
+                border-radius: 8px;
                 overflow: hidden;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+                box-shadow: 0 3px 14px rgba(0, 0, 0, 0.1);
                 background: #fff;
             }
             .lw-card-thumb-wrap { 
-                height: 180px; 
+                height: 100px; 
                 border-radius: 0; 
                 overflow: hidden; 
                 position: relative;
@@ -116,37 +116,37 @@ class LW_Map_Public {
                 transform: scale(1.05);
             }
             .lw-card-body { 
-                padding: 20px; 
+                padding: 12px; 
             }
             .lw-card-header {
-                margin-bottom: 12px;
+                margin-bottom: 6px;
             }
             .lw-card-title { 
-                font-size: 18px; 
+                font-size: 14px; 
                 font-weight: 700; 
-                margin: 0 0 8px 0; 
+                margin: 0 0 4px 0; 
                 color: #1e293b;
-                line-height: 1.4;
+                line-height: 1.3;
             }
             .lw-card-date {
-                font-size: 12px;
+                font-size: 11px;
                 color: #94a3b8;
                 font-weight: 500;
                 display: flex;
                 align-items: center;
-                gap: 6px;
-                margin-bottom: 12px;
+                gap: 4px;
+                margin-bottom: 6px;
             }
             .lw-card-date i {
-                font-size: 11px;
+                font-size: 10px;
             }
             .lw-card-excerpt { 
-                font-size: 14px; 
+                font-size: 12px; 
                 color: #64748b; 
-                margin-bottom: 16px;
-                line-height: 1.6;
+                margin-bottom: 10px;
+                line-height: 1.45;
                 display: -webkit-box;
-                -webkit-line-clamp: 3;
+                -webkit-line-clamp: 2;
                 -webkit-box-orient: vertical;
                 overflow: hidden;
             }
@@ -155,16 +155,16 @@ class LW_Map_Public {
                 text-decoration: none !important; 
                 display: block; 
                 text-align: center; 
-                padding: 12px 20px; 
-                border-radius: 8px; 
-                font-size: 14px; 
+                padding: 8px 14px; 
+                border-radius: 6px; 
+                font-size: 12px; 
                 font-weight: 600;
                 transition: all 0.3s ease;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
             }
             .lw-card-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                transform: translateY(-1px);
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
                 opacity: 0.95;
             }
             /* Map Marker Icon Size Fix */
@@ -183,13 +183,13 @@ class LW_Map_Public {
             }
             /* Leaflet Popup Styling */
             .leaflet-popup-content-wrapper {
-                border-radius: 12px !important;
+                border-radius: 8px !important;
                 padding: 0 !important;
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+                box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
             }
             .leaflet-popup-content {
                 margin: 0 !important;
-                width: 320px !important;
+                width: 260px !important;
             }
             .leaflet-popup-tip {
                 background: #fff !important;
@@ -206,14 +206,14 @@ class LW_Map_Public {
             
             /* Mapbox Popup Styling */
             .mapboxgl-popup {
-                max-width: 320px !important;
+                max-width: 260px !important;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
             
             .mapboxgl-popup-content {
                 padding: 0 !important;
-                border-radius: 12px !important;
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+                border-radius: 8px !important;
+                box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
                 overflow: hidden;
             }
             
@@ -332,8 +332,8 @@ class LW_Map_Public {
                             
                             var popup = new mapboxgl.Popup({ 
                                 offset: { 'bottom': [0, -10] },
-                                maxWidth: '320px', 
-                                minWidth: '320px',
+                                maxWidth: '260px', 
+                                minWidth: '260px',
                                 anchor: 'bottom'
                             }).setHTML(createPopupHtml(p));
                             
@@ -348,7 +348,7 @@ class LW_Map_Public {
                                 
                                 var container = map.getContainer();
                                 var containerHeight = container.clientHeight;
-                                var offsetY = containerHeight / 2 - 150; // Offset để popup ở giữa
+                                var offsetY = containerHeight / 2 - 110; // Offset để popup gọn ở giữa
                                 
                                 map.easeTo({
                                     center: [p.lng, p.lat],
@@ -419,8 +419,8 @@ class LW_Map_Public {
                         });
                         var marker = L.marker([p.lat, p.lng], {icon: customIcon}).addTo(map);
                         marker.bindPopup(createPopupHtml(p), { 
-                            maxWidth: 320, 
-                            minWidth: 320, 
+                            maxWidth: 260, 
+                            minWidth: 260, 
                             className: 'lw-map-popup',
                             autoPan: true,
                             autoPanPadding: [50, 50]
@@ -437,7 +437,7 @@ class LW_Map_Public {
                             // Tính toán vị trí để popup ở giữa màn hình
                             var newLatLng = map.containerPointToLatLng([
                                 containerWidth / 2,
-                                containerHeight / 2 - 150
+                                containerHeight / 2 - 110
                             ]);
                             
                             // Tạm thời tắt autoPan để tránh conflict

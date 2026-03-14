@@ -9,7 +9,8 @@
             <h2 class="mb-1 fw-bold text-dark"><i class="fas fa-map-marked-alt text-primary me-2"></i>LW Map Pro</h2>
             <p class="text-muted mb-0 small">Quản lý bản đồ hành trình chuyên nghiệp v<?php echo LW_MAP_VERSION; ?></p>
         </div>
-        <div>
+        <div class="d-flex gap-2">
+            <a href="https://github.com/nhockool1002/lw-map/issues" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary border shadow-sm btn-sm fw-bold"><i class="fas fa-bug me-1"></i> Báo lỗi</a>
             <button type="button" class="btn btn-white border shadow-sm btn-sm fw-bold text-secondary" onclick="location.reload()"><i class="fas fa-sync me-1"></i> Tải lại</button>
         </div>
     </div>
