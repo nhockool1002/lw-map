@@ -487,7 +487,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="point-footer-action">
                         <span class="coord-text" id="coord-display-${index}">📍 ${parseFloat(p.lat).toFixed(4)}, ${parseFloat(p.lng).toFixed(4)}</span>
-                        <button type="button" class="btn-delete-custom remove-point" data-index="${index}"><i class="fas fa-trash-alt"></i> Xóa</button>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button type="submit" form="points-form" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm"><i class="fas fa-save me-1"></i> Lưu</button>
+                            <button type="button" class="btn-delete-custom remove-point" data-index="${index}"><i class="fas fa-trash-alt"></i> Xóa</button>
+                        </div>
                     </div>
                     <input type="hidden" name="p_lat[]" data-idx="${index}" value="${p.lat}">
                     <input type="hidden" name="p_lng[]" data-idx="${index}" value="${p.lng}">
